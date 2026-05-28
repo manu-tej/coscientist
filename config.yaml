@@ -1,0 +1,30 @@
+anthropic:
+  model_strong: claude-opus-4-7
+  model_fast: claude-sonnet-4-6
+
+supervisor:
+  n_workers: 4
+  tick_interval_seconds: 10
+  checkpoint_interval: 5
+  max_time_minutes: 30
+  min_hypothesis_count: 8
+  elo_variance_threshold: 5000
+  meta_review_interval: 20
+
+tournament:
+  elo_initial: 1200.0
+  elo_k_factor: 32.0
+  multi_turn_threshold: 1350.0
+  max_debate_turns: 10
+
+proximity:
+  model: all-MiniLM-L6-v2
+  similarity_threshold: 0.5
+  duplicate_threshold: 0.92
+
+tools:
+  search_provider: tavily
+  max_search_results: 5
+
+db_path: coscientist.db
+log_path: coscientist.log

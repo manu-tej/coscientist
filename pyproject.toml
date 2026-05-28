@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "coscientist"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=0.40.0",
+    "aiosqlite>=0.20.0",
+    "sentence-transformers>=3.0.0",
+    "tavily-python>=0.3.0",
+    "gradio>=5.0.0",
+    "pyyaml>=6.0",
+    "numpy>=1.26.0",
+    "httpx>=0.27.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.12.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["core", "agents", "tools"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
