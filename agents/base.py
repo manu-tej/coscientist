@@ -11,7 +11,12 @@ class BaseAgent:
     def render_prompt(self, template_name: str, **variables) -> str:
         path = self.prompts_dir / f"{template_name}.txt"
         template = path.read_text()
-        return template.format(**variables)
+        # Escape braces in user-supplied values to prevent format-string injection
+        safe_variables = {
+            k: str(v).replace("{", "{{").replace("}", "}}")
+            for k, v in variables.items()
+        }
+        return template.format(**safe_variables)
 
     async def call_claude(
         self,

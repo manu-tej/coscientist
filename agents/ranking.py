@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import logging
 import re
 import uuid
+from typing import Optional
 
 from agents.base import BaseAgent
 from core.models import Hypothesis, ResearchPlanConfig, TournamentMatch
+from core.state import StateStore
 from core.tournament import compute_elo_update
+
+logger = logging.getLogger(__name__)
 
 
 def _parse_winner(text: str, h1_id: str, h2_id: str) -> str:
@@ -17,6 +22,10 @@ def _parse_winner(text: str, h1_id: str, h2_id: str) -> str:
     for pattern in [r"better (?:hypothesis|idea):\s*2", r"better idea:\s*2"]:
         if re.search(pattern, text_lower):
             return h2_id
+    logger.warning(
+        "Could not parse winner from ranking response; defaulting to h1. Response snippet: %s",
+        text[-200:],
+    )
     return h1_id  # default to h1 if parsing fails
 
 
@@ -28,10 +37,12 @@ class RankingAgent:
         base: BaseAgent,
         elo_k: float = 32.0,
         multi_turn_threshold: float = 1350.0,
+        store: Optional[StateStore] = None,
     ):
         self.base = base
         self.elo_k = elo_k
         self.multi_turn_threshold = multi_turn_threshold
+        self.store = store
 
     async def run_single_turn_match(
         self,
@@ -59,7 +70,13 @@ class RankingAgent:
         )
         winner_id = _parse_winner(response, h1.id, h2.id)
         winner = "a" if winner_id == h1.id else "b"
-        new_r1, new_r2 = compute_elo_update(h1.elo_rating, h2.elo_rating, winner, self.elo_k)
+        old_r1, old_r2 = h1.elo_rating, h2.elo_rating
+        new_r1, new_r2 = compute_elo_update(old_r1, old_r2, winner, self.elo_k)
+        if self.store:
+            await self.store.update_elo(h1.id, new_r1)
+            await self.store.update_elo(h2.id, new_r2)
+        h1.elo_rating = new_r1
+        h2.elo_rating = new_r2
         return TournamentMatch(
             id=str(uuid.uuid4()),
             run_id=config.run_id,
@@ -67,8 +84,8 @@ class RankingAgent:
             h2_id=h2.id,
             winner_id=winner_id,
             match_type="single_turn",
-            elo_before_h1=h1.elo_rating,
-            elo_before_h2=h2.elo_rating,
+            elo_before_h1=old_r1,
+            elo_before_h2=old_r2,
             elo_after_h1=new_r1,
             elo_after_h2=new_r2,
         )
@@ -102,7 +119,13 @@ class RankingAgent:
         )
         winner_id = _parse_winner(final_text, h1.id, h2.id)
         winner = "a" if winner_id == h1.id else "b"
-        new_r1, new_r2 = compute_elo_update(h1.elo_rating, h2.elo_rating, winner, self.elo_k)
+        old_r1, old_r2 = h1.elo_rating, h2.elo_rating
+        new_r1, new_r2 = compute_elo_update(old_r1, old_r2, winner, self.elo_k)
+        if self.store:
+            await self.store.update_elo(h1.id, new_r1)
+            await self.store.update_elo(h2.id, new_r2)
+        h1.elo_rating = new_r1
+        h2.elo_rating = new_r2
         return TournamentMatch(
             id=str(uuid.uuid4()),
             run_id=config.run_id,
@@ -111,8 +134,8 @@ class RankingAgent:
             winner_id=winner_id,
             match_type="multi_turn",
             debate_transcript="\n---\n".join(transcript),
-            elo_before_h1=h1.elo_rating,
-            elo_before_h2=h2.elo_rating,
+            elo_before_h1=old_r1,
+            elo_before_h2=old_r2,
             elo_after_h1=new_r1,
             elo_after_h2=new_r2,
         )

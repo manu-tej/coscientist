@@ -1,7 +1,8 @@
+import logging
 import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
-from agents.ranking import RankingAgent
+from agents.ranking import RankingAgent, _parse_winner
 from agents.base import BaseAgent
 from core.models import Hypothesis, ResearchPlanConfig
 
@@ -69,3 +70,35 @@ async def test_selects_single_turn_for_low_elo(agent, config):
     h2 = make_h("h2", 1200.0)
     match = await agent.run_match(h1, h2, config, review_1="r1", review_2="r2")
     assert match.match_type == "single_turn"
+
+
+@pytest.mark.asyncio
+async def test_elo_persisted_when_store_provided(config, mock_base, tmp_path):
+    from core.state import StateStore
+
+    store = StateStore(str(tmp_path / "test.db"))
+    await store.init_db()
+
+    h1 = Hypothesis(
+        id="h1", run_id="run1", text="text h1", summary="s1",
+        generation_method="debate", source="system", elo_rating=1200.0,
+    )
+    h2 = Hypothesis(
+        id="h2", run_id="run1", text="text h2", summary="s2",
+        generation_method="debate", source="system", elo_rating=1200.0,
+    )
+    await store.save_hypothesis(h1)
+    await store.save_hypothesis(h2)
+
+    agent_with_store = RankingAgent(base=mock_base, store=store)
+    await agent_with_store.run_single_turn_match(h1, h2, config, "r1", "r2")
+
+    updated_h1 = await store.get_hypothesis("h1")
+    assert updated_h1.elo_rating != 1200.0
+
+
+def test_parse_winner_logs_warning_on_failure(caplog):
+    with caplog.at_level(logging.WARNING, logger="agents.ranking"):
+        result = _parse_winner("completely unrecognized output", "h1", "h2")
+    assert result == "h1"
+    assert "defaulting to h1" in caplog.text
