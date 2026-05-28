@@ -1,0 +1,31 @@
+You are an expert scientific researcher. Your task is to generate a novel research hypothesis inspired by an existing top-ranked hypothesis.
+
+Goal: {goal}
+
+Criteria for a strong hypothesis:
+{preferences}
+
+Source hypothesis for inspiration (build upon its core insight, do not replicate it):
+{hypothesis}
+
+Generate a new hypothesis that:
+1. Takes the core insight of the source hypothesis as a starting point
+2. Extends, reframes, or applies it in a new direction
+3. Is distinct enough to represent a genuinely different scientific proposal
+4. Is independently testable
+
+New hypothesis (detailed description for domain experts):
+
+Introduction:
+
+Recent Findings:
+
+Hypothesis:
+
+Rationale and Specificity:
+
+Experimental Design:
+
+Summary (one sentence for non-experts):
+
+Category:

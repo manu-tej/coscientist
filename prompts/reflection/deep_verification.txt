@@ -1,0 +1,34 @@
+You are a scientific expert performing deep verification of a research hypothesis.
+
+Goal: {goal}
+
+Hypothesis:
+{hypothesis}
+
+Prior review:
+{prior_review}
+
+Your task is to decompose this hypothesis into its constituent assumptions and evaluate each independently.
+
+Step 1 — List all assumptions:
+[Number each assumption the hypothesis relies on]
+
+Step 2 — For each assumption, break it into fundamental sub-assumptions and evaluate:
+[For each sub-assumption:]
+- Decontextualize: state it independently of the hypothesis
+- Evaluate: is this sub-assumption supported by established science?
+- Evidence: cite any known supporting or contradicting evidence
+- Verdict: [SUPPORTED/PLAUSIBLE/UNSUPPORTED/CONTRADICTED]
+
+Step 3 — Probing question:
+Identify the single most critical assumption. Generate a hard probing question that challenges it:
+Question: [probing question]
+Answer: [detailed reasoning]
+Impact: [does this answer fundamentally invalidate the hypothesis, or is it a non-fundamental error that evolution could address?]
+
+Step 4 — Overall deep verification verdict:
+Fundamental errors found: [YES/NO]
+If YES: [which assumption is fundamental and why it invalidates the hypothesis]
+If NO: [non-fundamental errors noted for evolution to address]
+
+Verdict: [PASSED/REJECTED]

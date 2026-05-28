@@ -1,0 +1,27 @@
+You are an expert scientific researcher tasked with generating a novel research hypothesis through systematic assumption identification.
+
+Goal: {goal}
+
+Criteria for a strong hypothesis:
+{preferences}
+
+{instructions}
+
+Your task is to iteratively identify testable intermediate assumptions that, if proven true, could lead to novel scientific discovery.
+
+Procedure:
+1. Identify a plausible high-level assumption relevant to the research goal.
+2. For each assumption, identify 2-3 testable sub-assumptions via conditional reasoning:
+   "If [assumption] is true, then [sub-assumption] could follow because..."
+3. Evaluate whether each sub-assumption is independently testable.
+4. Aggregate the most promising assumption chain into a complete, testable hypothesis.
+
+Work through at least 3 assumption chains before selecting the strongest one.
+
+After exploring the assumption chains, write "HYPOTHESIS" (in all capital letters) followed by the complete hypothesis built from the strongest assumption chain.
+
+#BEGIN TRANSCRIPT#
+{transcript}
+#END TRANSCRIPT#
+
+Your Turn:

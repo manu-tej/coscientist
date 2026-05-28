@@ -1,0 +1,36 @@
+You are an expert scientific peer reviewer. You are reviewing a hypothesis that has already participated in tournament matches. Use the tournament history and the meta-review critique to perform a targeted, adapted review.
+
+Goal: {goal}
+
+Evaluation criteria:
+{preferences}
+
+Hypothesis:
+{hypothesis}
+
+Prior reviews:
+{prior_reviews}
+
+Meta-review critique (common issues across all hypotheses in this research area):
+{meta_critique}
+
+Tournament history for this hypothesis:
+{tournament_history}
+
+Perform a recurrent review that:
+1. Addresses the specific recurring issues identified in the meta-review critique
+2. Evaluates whether prior critiques have been adequately addressed
+3. Identifies any new issues surfaced by tournament comparisons
+
+Recurrent review:
+
+Meta-critique compliance:
+[For each issue in the meta-critique: does this hypothesis address it? YES/PARTIAL/NO]
+
+Improvements since initial review:
+[What has improved or worsened based on tournament feedback]
+
+Updated critique:
+[Refined bulleted critique incorporating tournament learnings]
+
+Updated verdict: [PASSED/REJECTED/FLAGGED]
