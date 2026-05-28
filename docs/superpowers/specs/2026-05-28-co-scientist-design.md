@@ -104,6 +104,8 @@ class ResearchPlanConfig:
 
 The config fields map to prompt template variables `{preferences}`, `{idea_attributes}`, `{constraints}` used in every agent prompt.
 
+**The `{instructions}` variable:** Several prompts (Figure A.1, A.2, A.8) include an `{instructions}` field that the paper never explicitly defines. Implementation interpretation: the Supervisor populates this per-task with context-specific guidance assembled from: (a) any direct scientist chat instructions received since the last task of this type, (b) a note if the research expansion strategy is active ("prioritize underexplored areas"), (c) empty string by default. This is the mechanism by which the chat expert-in-the-loop feature influences generation behavior.
+
 **Safety gate:** The research goal undergoes automated safety review before any agent work begins. Goals deemed potentially unsafe are rejected with an explanation.
 
 ---
@@ -243,13 +245,15 @@ Procedure:
 
 **Iterative assumptions** — `prompts/generation/assumptions.txt`
 Template variables: `{goal}`, `{preferences}`, `{instructions}`
+*Note: No prompt shown in paper appendix — template is inferred from the paper's description.*
 
-Procedure: Model iteratively identifies testable intermediate assumptions via conditional reasoning hops ("if A is true, then B could follow..."), identifies sub-assumptions, aggregates into a complete hypothesis.
+Procedure: Model iteratively identifies testable intermediate assumptions via conditional reasoning hops ("if A is true, then B could follow..."), identifies sub-assumptions, aggregates into a complete hypothesis. Implemented as a multi-turn loop (like debate) where each turn deepens the assumption chain.
 
 **Research expansion** — `prompts/generation/expansion.txt`
 Template variables: `{goal}`, `{preferences}`, `{instructions}`, `{research_overview}`, `{existing_hypotheses_summary}`
+*Note: No prompt shown in paper appendix — template is inferred from the paper's description.*
 
-Procedure: Reads the research overview from Meta-review agent + summary of existing hypotheses to identify underexplored areas, generates hypotheses in those gaps.
+Procedure: Reads the research overview from Meta-review agent + summary of existing hypotheses to identify underexplored areas, generates hypotheses in those gaps. Only viable once at least one meta-review has run.
 
 **Output format** (all strategies produce this structure):
 ```
@@ -266,7 +270,7 @@ The `Summary` and `Category` fields allow scientists to quickly grasp core ideas
 
 ### 5.2 Reflection Agent
 
-Six tiers run sequentially per hypothesis. Early exit on disqualification.
+The paper lists six review types. Tiers 1→2 are explicitly gated ("if a hypothesis passes the initial review, the Reflection agent performs a full review"). Tiers 3–6 are listed as review types the agent *employs* — the paper does not state they all run sequentially on every hypothesis. **Implementation choice:** we run them sequentially with early exit, as this is the most faithful interpretation that ensures comprehensive review of surviving hypotheses. Tiers 3–6 may be selectively skipped in future optimizations.
 
 **Tier 1 — Initial review** (`prompts/reflection/initial.txt`)
 - No web search
@@ -291,6 +295,10 @@ Six tiers run sequentially per hypothesis. Early exit on disqualification.
 - Critical: a non-fundamental error does NOT discard the hypothesis — the agent assesses whether the incorrect assumption is fundamental and notes this in the review
 
 **Tier 4 — Observation review** (`prompts/reflection/observation.txt`)
+Template variables: `{goal}`, `{hypothesis}`, `{article}`
+
+Article selection: reuse the highest-relevance article retrieved during Tier 2's web search (stored in `reviews.web_citations`). If no Tier 2 citations exist, run a targeted Tavily search first.
+
 Five-step protocol (from Figure A.3 of paper):
 1. Observation extraction: list relevant observations from retrieved article
 2. Per-observation causal analysis: "would we see this observation if the hypothesis were true?"
@@ -320,9 +328,10 @@ Positive observations (classified as `missing piece`) are appended directly to t
 - K-factor: 32 (standard)
 - Expected score formula: `E_A = 1 / (1 + 10^((R_B - R_A) / 400))`
 
-**Match type selection** (faithful to paper):
+**Match type selection** (implementation choice — paper specifies the split but not the threshold):
 - Hypotheses with Elo ≥ 1350: multi-turn debate match
 - Hypotheses with Elo < 1350: single-turn comparison
+- The 1350 cutoff is a configurable default, not a paper-specified value
 
 **Matchmaking** (first open-source implementation to do this faithfully):
 1. Proximity agent provides a similarity matrix over all hypothesis pairs
