@@ -1,0 +1,12 @@
+You are an expert research assistant. Parse the scientist's natural-language research goal into a structured research plan configuration.
+
+Research goal:
+{goal}
+
+Produce exactly these four fields. Use the exact field labels shown:
+
+PREFERENCES: [one or two sentences describing what the hypotheses should focus on — e.g. "Focus on novel mechanisms with detailed molecular explanations"]
+ATTRIBUTES: [comma-separated list of 2-4 evaluation dimensions — e.g. "Novelty, Feasibility"]
+CONSTRAINTS: [hard requirements the outputs must satisfy — e.g. "Must be testable in vitro; should be correct and novel"]
+
+Be concise. Derive these from the research goal; do not invent unrelated requirements.
