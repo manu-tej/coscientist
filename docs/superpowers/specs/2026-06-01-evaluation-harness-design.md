@@ -294,3 +294,67 @@ Add to `pyproject.toml`: `scipy` (spearman/kendall), `statsmodels` (logistic GLM
 
 - Unit suite green (all statistics/matching/aggregation logic).
 - A small real run gated on the user's keys/subscription: `python -m bench concordance --dataset gpqa-bio --limit 10` → produces a report with a Spearman ρ and the blue/red curves; observe whether ρ is positive (the validity signal). This is the manual capstone — the first real evidence that *this* implementation's Elo tracks truth.
+
+---
+
+## 17. Efficiency & the Minimal Viable Experiment
+
+A naive reading of this spec ("run the system on hundreds of questions × 5 ablation variants") implies thousands of system-runs and a four-figure bill. Three compounding levers collapse that to **~65 system-runs at roughly an order-of-magnitude lower cost**. This section is the binding cost protocol; the harness is built to it.
+
+### 17.1 Minimal sample sizes (statistical power, not guesswork)
+
+| Quantity | Value | Rationale |
+|---|---|---|
+| GPQA-bio questions (concordance) | **30**, stratified by difficulty tercile (base-model accuracy) × sub-topic | Binding constraint: populate ≥14 Elo buckets × ≥25 hypotheses each |
+| Elo buckets for Spearman | **14** (ρ=0.7, power 0.8 via Fisher-z: `n = 3 + 1.06·((1.96+0.842)/0.867)² ≈ 14`) | Pool hypotheses to a **global cross-question Elo axis** — per-run Elo ranges are too narrow to yield 14 buckets alone |
+| Hypotheses on the Elo axis | **~450** (30 runs × ~15 usable) | Covers both per-bucket accuracy (SE≤0.10 at ≥25/bucket) and the response-level logistic `correct ~ elo` |
+| Paired goals for ablations + baseline | **30**, *reused* from the concordance 30 | Paired Wilcoxon for d=0.5, Holm α; CRN+CUPED make effective d≈0.7 → comfortably powered |
+| Bootstrap (blue−red spread) | **10,000 resamples, BCa, cluster-bootstrap by goal** | Hypotheses within a goal are correlated; cluster or you under-cover |
+| Multiple comparisons | **Holm–Bonferroni** (confirmatory) / BH-FDR (exploratory ranking) | 4 ablations + baseline = 5 tests |
+
+**Variance reduction (≈2–3× fewer effective samples):** (a) **Common Random Numbers** — run every ablation variant on the *same* goals with the *same* `SupervisorSettings.seed` (the existing seed thread, `supervisor.py:86`), so the paired Δ couples out shared noise; (b) **CUPED** — adjust each goal's score by the 32-sample base-model accuracy as a covariate (`Y_adj = Y − θ(C − E[C])`).
+
+**Sequential early-stopping:** plan K=30 questions, interim look every 5, **O'Brien–Fleming alpha-spending** (or an e-process confidence sequence) on the concordance ρ≥0.7 test and the ablation Δ≠0 tests, plus a futility boundary. Expect to **stop at ~18–24 questions** when effects are real → 20–40% expected-sample savings on top of the above. *(v1 implements fixed-N=30 with streaming partial reports; the OBF/e-process stopping rule is a documented Phase-2 add — it's a savings optimization, not a correctness requirement.)*
+
+### 17.2 Run-reuse orchestration (zero-cost architectural savings)
+
+The costly unit is one `Supervisor.run()` over one goal (~50–150 calls). Everything else is a **pure read** over the captured run SQLite plus cheap judge passes. Reuse identities:
+
+- **One full run → concordance + scaling + judge.** Concordance reads `hypotheses.elo_rating` + a parsed-answer regex over `hypotheses.text`; scaling replays `tournament_matches.elo_after_h*` @ `created_at`; judge scores top-K `hypotheses.text`. *Three metrics, one run.*
+- **The 32-sample reference baseline IS the `best_of_32` baseline** — compute once per `(goal_id, base_model)`, serve both the concordance red line and Tier-3.
+- **The ablation `full` variant IS the concordance run** — pick the ablation goal subset ⊆ concordance goals, same seed (CRN); `full` costs 0 extra runs.
+
+**Manifest cache** (`bench/manifest.sqlite`) keyed `(goal_id, variant, system_version, seed)` where `system_version` = git SHA of `core/`. A cache hit = the run DB exists and `status='complete'`; re-analysis opens it read-only and never re-runs. This gives **resume** (skip completed cells on restart — the per-run SQLite is already a valid partial DB thanks to atomic `save_match_and_elos` + CAS `try_claim_review`) and **streaming aggregation** (recompute stats over completed cells anytime → enables the sequential stop).
+
+**Run accounting** — for `C` concordance goals, ablation subset `a`, `v` variants:
+```
+fresh_system_runs = C + a·(v − 1)
+base_model_samples = C · 32        (shared by red-line and best_of_32)
+```
+v1 experiment (`C=30, a=10, v=5`): **30 + 10·4 = 70 system-runs** (vs ~150 naive, −53%), **30×32 = 960 base samples** (vs ~1920 naive, −50%). Plus cheap judge/cross-tournament passes.
+
+### 17.3 Cheapest execution stack (which calls, which discounts)
+
+**Critical distinction the cost analysis must respect — batch applies only to *independent* calls:**
+- **Within a single system-run, calls are sequential and dependent** (a debate turn needs the prior turn; ranking needs the reviews). These **cannot be batched.** They benefit from **prompt caching** (shared prefix) + **model routing** + **inter-run concurrency** (run many goals' runs in parallel for wall-clock).
+- **Independent call classes CAN be batched** (Anthropic Message Batches, −50%): the 32-sample reference baselines, the judge rubric passes over many hypotheses, and the cross-tournament match adjudications. These are fire-and-forget, latency-tolerant, and have no intra-dependency.
+
+**The levers, applied correctly:**
+
+1. **Run the eval on a pay-per-token API key, NOT a subscription.** Batch (−50%) and deep prompt caching (−90% on cached reads) are **API-only**; the subscription Agent-SDK credit pool caps out (Max 20x ≈ $200/mo) and then bills at *standard* rates with no batch. The eval is precisely the workload Anthropic says to run on metered API. **This is the one strategic decision that diverges from the "wire my subscription" thread: subscriptions for interactive use, metered API for the big eval.**
+2. **Prompt caching, 1-hour TTL, frozen prefix.** Structure every agent prompt as `system → research goal → ResearchPlanConfig` then a `cache_control` breakpoint, then the variable hypothesis/debate/ranking text **last**. Within one run's ~50–150 calls the prefix is written once (2× input) and read by the rest (0.1× input) → **~70–85% off the prefix input tokens**, which dominate. (Our `ClaudeClient` already caches the system prompt from Plan 1; this extends the cached prefix to include goal+config.) 1-hour TTL because runs exceed the 5-min default.
+3. **Model routing.** Default the bulk (initial/observation reviews, simple rankings, the 32 reference samples) to the **fast tier**; reserve the **strong tier** for deep verification, multi-turn debate, and meta-review — the `use_strong` flag already exists. ≈−64% blended vs all-strong.
+4. **Harness response cache**, keyed `(system, user, model, temperature, seed)` — serves deterministic temp=0 re-runs of an ablation grid for **$0**; never caches the temperature-varied reference samples (the key includes temp/seed so sampled calls never collide).
+5. **Batch the independent classes** (reference baselines, judge, cross-tournament) via the Message Batches API; OpenAI Batch API for the cross-family judge if used.
+
+**Stacked effect:** caching on the dominant prefix (−70–85% input) × routing (−64% blended) on within-run calls, plus batch (−50%) on the independent classes, compounds to **roughly 5–10% of a naive all-strong, standard-rate, no-cache bill** — order-of-magnitude reduction. Combined with §17.1–17.2 (≈70 runs, early-stop), a v1 validity experiment moves from *hundreds of dollars* to *tens*.
+
+### 17.4 v1 build vs documented-deferred
+
+**Built in v1 (zero-to-low cost, correctness-relevant):** run-reuse DAG + manifest cache + resume + streaming aggregation (§17.2); CRN seeds + CUPED covariate + global Elo axis + Holm + cluster-BCa bootstrap (§17.1); frozen-prefix prompt caching + model routing + harness response cache (§17.3 levers 2–4). These are architecture and configuration — they cost nothing extra and deliver the bulk of the savings.
+
+**Documented, deferred to Phase 2 (additive optimizations):** Batch-API execution mode for the independent call classes (§17.3 lever 5 — a new async submit/poll backend path); the O'Brien–Fleming / e-process sequential stopping rule (§17.1 — fixed-N=30 with partial reports suffices for v1). Both are pure cost reductions layered on a correct v1; neither changes any result.
+
+### 17.5 Numbers to re-verify before spending
+
+Pricing/model-version specifics (batch discount %, cached-read multiplier, per-MTok rates, Agent-SDK credit amounts) are current-as-of-June-2026 from secondary sources; re-check the live Anthropic pricing page and your account's credit terms before committing real budget. The CRN coupling (ρ_pair≈0.7–0.8) and CUPED covariate correlation should be measured from a 5-goal pilot before trusting the reduced effective-N — don't pre-commit to n<30 without confirming the coupling.
