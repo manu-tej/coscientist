@@ -167,3 +167,15 @@ async def test_proximity_task_updates_graph(store, config):
     task = AgentTask(priority=1, agent_type=AgentType.PROXIMITY, run_id="run1")
     await runner.run_task(task)
     proximity.update_graph.assert_called_once()
+
+
+async def test_reflection_claim_prevents_double_review(store, config):
+    import asyncio
+    runner, gen, refl, *_ = build_runner(store, config)
+    h = make_h()
+    await store.save_hypothesis(h)
+    task = AgentTask(priority=1, agent_type=AgentType.REFLECTION, run_id="run1")
+    # Fire two reflection tasks concurrently on the same (only) hypothesis
+    await asyncio.gather(runner.run_task(task), runner.run_task(task))
+    # Only ONE should have run the pipeline -> initial_review called exactly once
+    assert refl.run_initial_review.call_count == 1

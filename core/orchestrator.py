@@ -86,6 +86,11 @@ class AgentRunner:
                     break
         if hypothesis is None:
             return
+        # Atomically claim this hypothesis so a concurrent worker doesn't
+        # run the reflection pipeline on it at the same time.
+        claimed = await self.store.try_claim_review(hypothesis.id)
+        if not claimed:
+            return
         meta_critique = await self._current_meta_critique()
         await run_reflection_pipeline(
             hypothesis, self.config, self.reflection, self.search, self.store,

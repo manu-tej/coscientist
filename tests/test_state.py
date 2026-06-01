@@ -96,3 +96,21 @@ async def test_save_match_and_elos_atomic(store):
     hb = await store.get_hypothesis("hb")
     assert ha.elo_rating == 1216.0
     assert hb.elo_rating == 1184.0
+
+
+async def test_try_claim_review_first_wins(store):
+    from core.models import Hypothesis
+    h = Hypothesis(id="hc", run_id="run1", text="t", summary="s",
+                   generation_method="debate", source="system")
+    await store.save_hypothesis(h)
+    first = await store.try_claim_review("hc")
+    second = await store.try_claim_review("hc")
+    assert first is True
+    assert second is False
+
+
+async def test_try_claim_review_distinct_hypotheses(store):
+    a = await store.try_claim_review("ha")
+    b = await store.try_claim_review("hb")
+    assert a is True
+    assert b is True

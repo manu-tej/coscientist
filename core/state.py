@@ -74,6 +74,11 @@ CREATE TABLE IF NOT EXISTS meta_reviews (
     tick INTEGER NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS review_claims (
+    hypothesis_id TEXT PRIMARY KEY,
+    claimed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 
@@ -199,6 +204,22 @@ class StateStore:
             )
             for r in rows
         ]
+
+    async def try_claim_review(self, hypothesis_id: str) -> bool:
+        """Atomically claim a hypothesis for reflection. Returns True if THIS
+        caller won the claim, False if another worker already claimed it.
+
+        Uses INSERT OR IGNORE on a hypothesis_id primary key: the first insert
+        succeeds (rowcount 1), concurrent inserts are ignored (rowcount 0).
+        This is a lock-free compare-and-swap that prevents two workers from
+        running the reflection pipeline on the same hypothesis."""
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                "INSERT OR IGNORE INTO review_claims (hypothesis_id) VALUES (?)",
+                (hypothesis_id,),
+            )
+            await db.commit()
+            return cursor.rowcount == 1
 
     # ── Tournament ────────────────────────────────────────────────────────────
 
