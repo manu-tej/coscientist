@@ -1,7 +1,5 @@
 import uuid
-from core.models import (
-    AgentTask, AgentType, ResearchPlanConfig, Hypothesis,
-)
+from core.models import AgentTask, AgentType, ResearchPlanConfig
 from core.state import StateStore
 from core.tournament import select_match_pairs
 from core.reflection_pipeline import run_reflection_pipeline
@@ -110,9 +108,7 @@ class AgentRunner:
         review_1 = await self._review_text(h1.id)
         review_2 = await self._review_text(h2.id)
         match = await self.ranking.run_match(h1, h2, self.config, review_1, review_2)
-        await self.store.save_match(match)
-        await self.store.update_elo(h1.id, match.elo_after_h1)
-        await self.store.update_elo(h2.id, match.elo_after_h2)
+        await self.store.save_match_and_elos(match)
 
     async def _run_proximity(self, task: AgentTask) -> None:
         hypotheses = await self.store.list_hypotheses(self.config.run_id)

@@ -73,3 +73,26 @@ async def test_save_and_list_matches(store):
     matches = await store.list_matches("run1")
     assert len(matches) == 1
     assert matches[0].winner_id == "h1"
+
+
+async def test_save_match_and_elos_atomic(store):
+    from core.models import Hypothesis, TournamentMatch
+    h1 = Hypothesis(id="ha", run_id="run1", text="t", summary="s",
+                    generation_method="debate", source="system")
+    h2 = Hypothesis(id="hb", run_id="run1", text="t", summary="s",
+                    generation_method="debate", source="system")
+    await store.save_hypothesis(h1)
+    await store.save_hypothesis(h2)
+    match = TournamentMatch(
+        id="m1", run_id="run1", h1_id="ha", h2_id="hb",
+        winner_id="ha", match_type="single_turn",
+        elo_before_h1=1200.0, elo_before_h2=1200.0,
+        elo_after_h1=1216.0, elo_after_h2=1184.0,
+    )
+    await store.save_match_and_elos(match)
+    matches = await store.list_matches("run1")
+    assert len(matches) == 1
+    ha = await store.get_hypothesis("ha")
+    hb = await store.get_hypothesis("hb")
+    assert ha.elo_rating == 1216.0
+    assert hb.elo_rating == 1184.0

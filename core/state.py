@@ -217,6 +217,32 @@ class StateStore:
             )
             await db.commit()
 
+    async def save_match_and_elos(self, match: TournamentMatch) -> None:
+        """Atomically persist a tournament match and update both hypotheses' Elo
+        ratings in a single transaction, so a mid-write failure cannot leave one
+        hypothesis updated and the other not."""
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                """INSERT OR REPLACE INTO tournament_matches
+                   (id, run_id, h1_id, h2_id, winner_id, match_type,
+                    debate_transcript, elo_before_h1, elo_before_h2,
+                    elo_after_h1, elo_after_h2)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                (match.id, match.run_id, match.h1_id, match.h2_id,
+                 match.winner_id, match.match_type, match.debate_transcript,
+                 match.elo_before_h1, match.elo_before_h2,
+                 match.elo_after_h1, match.elo_after_h2),
+            )
+            await db.execute(
+                "UPDATE hypotheses SET elo_rating = ? WHERE id = ?",
+                (match.elo_after_h1, match.h1_id),
+            )
+            await db.execute(
+                "UPDATE hypotheses SET elo_rating = ? WHERE id = ?",
+                (match.elo_after_h2, match.h2_id),
+            )
+            await db.commit()
+
     async def list_matches(self, run_id: str) -> list[TournamentMatch]:
         async with aiosqlite.connect(self.db_path) as db:
             db.row_factory = aiosqlite.Row
