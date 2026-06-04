@@ -61,22 +61,39 @@ def load_gpqa_fixture(path: str | Path, all_subjects: bool = False) -> list[Benc
 
 def load_gpqa_hf(all_subjects: bool = False, limit: Optional[int] = None) -> list[BenchGoal]:
     """Load the live ungated mirror hendrydong/gpqa_diamond_mc. Network-gated;
-    used by the opt-in integration test and real runs, not unit tests."""
+    used by the opt-in integration test and real runs, not unit tests.
+
+    This mirror's schema is (problem, solution, domain): `problem` is the full
+    question with the (A)-(D) options inline, `solution` is `\\boxed{X}`, and
+    `domain` is Physics/Chemistry/Biology. There is no separate choices list."""
     from datasets import load_dataset  # local import: heavy, network
 
     ds = load_dataset("hendrydong/gpqa_diamond_mc", split="test")
     goals: list[BenchGoal] = []
     for i, ex in enumerate(ds):
-        subject = str(ex.get("subject") or ex.get("category") or "").strip()
-        if not all_subjects and subject.lower() != "biology":
+        domain = str(ex.get("domain", "")).strip()
+        if not all_subjects and domain.lower() != "biology":
             continue
-        choices = ex.get("choices") or ex.get("options")
-        ans = ex.get("answer")
-        if isinstance(ans, int):
-            ans = _LETTERS[ans]
-        row = {"id": ex.get("id", f"gpqa-{i}"), "subject": subject,
-               "question": ex["question"], "choices": list(choices), "answer": ans}
-        goals.append(_row_to_goal(row))
+        m = re.search(r"boxed\{([A-Da-d])\}", str(ex.get("solution", "")))
+        if not m:
+            continue  # no gold letter → unusable for concordance scoring
+        answer = m.group(1).upper()
+        problem = str(ex.get("problem", ""))
+        goal_text = (
+            "Research goal: Determine the correct answer to the following "
+            f"graduate-level {domain.lower()} question and justify it rigorously.\n\n"
+            f"Question:\n{problem}\n\n"
+            "Produce a hypothesis stating which option (A, B, C, or D) is correct "
+            "and why. State your choice explicitly as 'Answer: <letter>'."
+        )
+        goals.append(BenchGoal(
+            id=f"gpqa-{domain.lower()}-{i}",
+            goal=goal_text,
+            domain=domain.lower(),
+            gold_answer=answer,
+            choices=None,  # options are inline in `problem`; no separate list
+            metadata={"problem": problem, "solution": str(ex.get("solution", ""))},
+        ))
         if limit is not None and len(goals) >= limit:
             break
     return goals

@@ -11,5 +11,8 @@ def test_gpqa_hf_pull_returns_biology_goals():
     from bench.datasets.gpqa import load_gpqa_hf
     goals = load_gpqa_hf(limit=5)
     assert len(goals) >= 1
-    assert all(g.gold_answer for g in goals)
-    assert all(g.choices for g in goals)
+    # This mirror has (problem, solution, domain): gold_answer is parsed from the
+    # \boxed{X} solution; options are inline in the problem (no separate choices).
+    assert all(g.gold_answer in {"A", "B", "C", "D"} for g in goals)
+    assert all(g.domain == "biology" for g in goals)
+    assert all("Question:" in g.goal for g in goals)
