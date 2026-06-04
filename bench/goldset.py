@@ -50,6 +50,8 @@ def score_recall(
     pool = hypotheses
     if k is not None:
         pool = sorted(hypotheses, key=lambda h: getattr(h, "elo_rating", 0.0), reverse=True)[:k]
+    # Join all searched hypotheses into one blob. Tradeoff: a multi-token entity
+    # could in principle match across a hypothesis boundary; acceptable for recall.
     blob = " ".join(_searched_fields(h) for h in pool)
     hits = sum(1 for e in gold_entities if entity_in_text(e, blob))
     return hits / len(gold_entities)

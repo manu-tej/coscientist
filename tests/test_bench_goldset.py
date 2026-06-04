@@ -37,3 +37,18 @@ def test_score_recall_pool_and_topk():
 
 def test_score_recall_empty_gold_is_zero():
     assert score_recall([_h("x")], []) == 0.0
+
+
+def test_score_recall_k_selects_top_elo():
+    from types import SimpleNamespace
+    def h(text, elo):
+        return SimpleNamespace(text=text, summary="", elo_rating=elo)
+    hyps = [
+        h("PI3K-Akt drives it", elo=1000.0),   # low elo
+        h("TGF-β matters", elo=1500.0),         # high elo
+    ]
+    gold = ["PI3K-Akt", "TGF-β"]
+    # k=1 searches only the top-elo hypothesis (TGF-β) → 1/2 recall
+    assert score_recall(hyps, gold, k=1) == 0.5
+    # k=2 searches both → 2/2
+    assert score_recall(hyps, gold, k=2) == 1.0
