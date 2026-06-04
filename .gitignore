@@ -1,0 +1,29 @@
+# ── Python bytecode / caches ──
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ── Virtual envs ──
+.venv/
+venv/
+env/
+
+# ── OS junk ──
+.DS_Store
+.DS_Store?
+Thumbs.db
+
+# ── Generated run artifacts (system + eval harness) ──
+*.db
+*.sqlite
+coscientist.log
+*.log
+bench_runs/
+bench/manifest.sqlite
+
+# ── Tooling / agent scratch ──
+.superpowers/
+.agents/
