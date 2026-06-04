@@ -17,6 +17,12 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--seed", type=int, default=0)
         sp.add_argument("--backend", choices=["api", "subscription"], default="api")
         sp.add_argument("--out", default="bench_report", help="output path prefix")
+        sp.add_argument("--max-tasks", dest="max_tasks", type=int, default=30,
+                        help="Supervisor tasks per goal (higher = more Elo spread, more cost)")
+        sp.add_argument("--min-support", dest="min_support", type=int, default=2,
+                        help="min hypotheses per Elo bucket")
+        sp.add_argument("--max-time", dest="max_time", type=int, default=900,
+                        help="per-goal wall-clock cap (seconds)")
 
     c = sub.add_parser("concordance"); common(c)
     c.add_argument("--dataset", default="gpqa-bio")

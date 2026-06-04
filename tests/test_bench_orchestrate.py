@@ -39,13 +39,14 @@ class _Args:
 
 
 @pytest.mark.asyncio
-async def test_run_command_proceed_returns_zero(capsys, monkeypatch):
+async def test_run_command_proceed_unwired_command_returns_zero(capsys, monkeypatch):
     import bench.orchestrate as orch
-    # auto-confirm via --yes; stub run loop returns 0
-    rc = await orch.run_command(_Args(yes=True))
+    # A not-yet-wired command proceeds past the cost gate and returns 0 without
+    # invoking the model stack (only 'concordance' runs end-to-end in v1).
+    rc = await orch.run_command(_Args(yes=True, command="baseline"))
     assert rc == 0
     out = capsys.readouterr().out
-    assert "§16" in out or "capstone" in out.lower()
+    assert "not yet wired" in out.lower()
 
 
 @pytest.mark.asyncio
