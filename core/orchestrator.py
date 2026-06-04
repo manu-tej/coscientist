@@ -109,7 +109,7 @@ class AgentRunner:
         # Run several matches per ranking task so the tournament accumulates the
         # match volume needed to spread Elo (single-turn matches are cheap). The
         # pairs are non-overlapping, so in-place Elo updates don't collide.
-        pairs = select_match_pairs(hypotheses, similar, n_pairs=task.extra.get("n_pairs", 3))
+        pairs = select_match_pairs(hypotheses, similar, n_pairs=task.extra.get("n_pairs", 5))
         for h1, h2 in pairs:
             review_1 = await self._review_text(h1.id)
             review_2 = await self._review_text(h2.id)
