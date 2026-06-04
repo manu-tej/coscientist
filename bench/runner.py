@@ -122,7 +122,6 @@ async def run_system(
     - `ranking_mode`: "elo" (normal) | "absolute" (no_tournament — Task D2 reads this).
     - `client_factory(model_strong, model_fast)`: injects a fake client in tests.
     """
-    from core.config_parser import ConfigParser
     from core.orchestrator import AgentRunner
     from core.supervisor import Supervisor, SupervisorSettings
     from core.stats import WeightThresholds
@@ -197,6 +196,8 @@ async def run_system(
     await supervisor.run()
     wall = time.monotonic() - start
 
+    # NOTE: Supervisor has no call counter yet, so n_llm_calls is a placeholder (0).
+    # Cost/efficiency reporting uses bench.cost estimates, not this field (see plan §17.3).
     n_calls = supervisor.runner_call_count if hasattr(supervisor, "runner_call_count") else 0
     return await read_run(db_path, run_id=run_id, goal_id=goal.id, variant=variant,
                           n_llm_calls=n_calls, wall_clock_s=wall)
