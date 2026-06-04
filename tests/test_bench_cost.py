@@ -21,3 +21,21 @@ def test_format_estimate_flags_subscription_caveat():
     assert "batch" in msg.lower()
     api_msg = format_estimate(est, backend="api")
     assert "batch" in api_msg.lower()
+
+
+def test_cli_parser_concordance_defaults():
+    from bench.cli import build_parser
+    args = build_parser().parse_args(["concordance", "--dataset", "gpqa-bio", "--limit", "25"])
+    assert args.command == "concordance"
+    assert args.dataset == "gpqa-bio"
+    assert args.limit == 25
+    assert args.full is False
+    assert args.yes is False
+
+
+def test_cli_parser_ablation_and_all():
+    from bench.cli import build_parser
+    a = build_parser().parse_args(["ablation", "--goals", "comp_bio", "--limit", "10"])
+    assert a.command == "ablation" and a.goals == "comp_bio"
+    b = build_parser().parse_args(["all", "--yes"])
+    assert b.command == "all" and b.yes is True
