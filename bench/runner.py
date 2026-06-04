@@ -136,6 +136,11 @@ async def run_system(
     from agents.evolution import EvolutionAgent
     from agents.meta_review import MetaReviewAgent
 
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()  # pick up .env (provider + OAuth token) at run time
+    except ImportError:
+        pass
     cfg = _load_yaml_config(config_yaml)
     if ranking_mode not in ("elo", "absolute"):
         raise ValueError(f"Unknown ranking_mode: {ranking_mode!r} (expected 'elo' or 'absolute')")
@@ -157,9 +162,11 @@ async def run_system(
         client = client_factory(cfg["anthropic"]["model_strong"],
                                 cfg["anthropic"]["model_fast"])
     else:
-        from tools.claude import ClaudeClient
-        client = ClaudeClient(model_strong=cfg["anthropic"]["model_strong"],
-                              model_fast=cfg["anthropic"]["model_fast"])
+        # Use the configured backend (default 'claude-code' subscription), the
+        # same factory the entrypoint uses — so bench runs go through whatever
+        # provider config.yaml / COSCIENTIST_PROVIDER selects, not a hardcoded API client.
+        from tools.llm import make_backend
+        client = make_backend(cfg)
 
     prompts_dir = Path("prompts")
     base = BaseAgent(client=client, prompts_dir=prompts_dir)

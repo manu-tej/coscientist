@@ -36,6 +36,11 @@ async def main(goal: str) -> None:
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()  # pick up .env (provider + OAuth token) before building the backend
+    except ImportError:
+        pass
     cfg = load_config()
     run_id = str(uuid.uuid4())[:8]
 

@@ -28,6 +28,14 @@ def make_backend(cfg: dict) -> "LLMBackend":
         from tools.claude import ClaudeClient
         return ClaudeClient(model_strong=cfg["anthropic"]["model_strong"],
                             model_fast=cfg["anthropic"]["model_fast"])
+    if provider == "claude-oauth":
+        from tools.claude_oauth import ClaudeOAuthBackend
+        co = cfg.get("claude_oauth", {})
+        return ClaudeOAuthBackend(
+            model_strong=co.get("model_strong", "claude-opus-4-8"),
+            model_fast=co.get("model_fast", "claude-sonnet-4-6"),
+            token_env=co.get("token_env", "ANTHROPIC_AUTH_TOKEN"),
+        )
     if provider == "claude-code":
         from tools.claude_code import ClaudeCodeBackend
         cc = cfg.get("claude_code", {})

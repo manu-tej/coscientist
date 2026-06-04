@@ -21,6 +21,7 @@ dependencies = [
     "datasets>=2.19.0",
     "pandas>=2.2.0",
     "claude-agent-sdk>=0.2.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.optional-dependencies]

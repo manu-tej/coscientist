@@ -24,6 +24,11 @@ coscientist.log
 bench_runs/
 bench/manifest.sqlite
 
+# ── Secrets ──
+.env
+.env.*
+!.env.example
+
 # ── Tooling / agent scratch ──
 .superpowers/
 .agents/
