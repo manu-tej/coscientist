@@ -36,6 +36,10 @@ class ClaudeOAuthBackend:
         self._client = anthropic.AsyncAnthropic(
             auth_token=token,
             default_headers={"anthropic-beta": _OAUTH_BETA},
+            # The SDK retries 5xx (incl. 529 Overloaded) with exponential backoff;
+            # raise the cap so transient overload windows don't drop agent tasks.
+            max_retries=8,
+            timeout=120.0,
         )
 
     async def call(
