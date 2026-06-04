@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 
-from bench.cost import estimate_cost, format_estimate
+from bench.cost import format_estimate
 
 
 def build_parser() -> argparse.ArgumentParser:

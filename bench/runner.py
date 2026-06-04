@@ -10,7 +10,6 @@ from typing import Callable, Optional
 import yaml
 
 from core.state import StateStore
-from core.models import TournamentMatch
 
 
 @dataclass
@@ -36,31 +35,34 @@ class BenchRun:
 
 def trajectory_from_matches(
     hyp_id: str,
-    matches: list[TournamentMatch],
-    created_ats: list[str],
+    ordered_match_rows: list[tuple[str, str, str, float, float]],
 ) -> list[tuple[str, float]]:
-    """Replay a hypothesis's Elo over time from ordered match history.
-    `created_ats[i]` is the timestamp of `matches[i]` (parallel lists)."""
+    """Replay a hypothesis's Elo over time from deterministically-ordered match rows.
+    Each row is (created_at, h1_id, h2_id, elo_after_h1, elo_after_h2)."""
     traj: list[tuple[str, float]] = []
-    for m, ts in zip(matches, created_ats):
-        if m.h1_id == hyp_id:
-            traj.append((ts, m.elo_after_h1))
-        elif m.h2_id == hyp_id:
-            traj.append((ts, m.elo_after_h2))
+    for created_at, h1_id, h2_id, elo_after_h1, elo_after_h2 in ordered_match_rows:
+        if h1_id == hyp_id:
+            traj.append((created_at, elo_after_h1))
+        elif h2_id == hyp_id:
+            traj.append((created_at, elo_after_h2))
     return traj
 
 
-async def _match_created_ats(db_path: str, run_id: str) -> list[str]:
-    """Fetch match created_at timestamps in the same order list_matches returns."""
+async def _ordered_match_rows(db_path: str, run_id: str) -> list[tuple[str, str, str, float, float]]:
+    """Fetch (created_at, h1_id, h2_id, elo_after_h1, elo_after_h2) for all matches,
+    ordered deterministically by (created_at, id) so trajectory replay is stable even
+    when several matches share a 1-second CURRENT_TIMESTAMP."""
     import aiosqlite
     async with aiosqlite.connect(db_path) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT created_at FROM tournament_matches WHERE run_id=? ORDER BY created_at",
+            "SELECT created_at, h1_id, h2_id, elo_after_h1, elo_after_h2 "
+            "FROM tournament_matches WHERE run_id=? ORDER BY created_at, id",
             (run_id,),
         ) as cur:
             rows = await cur.fetchall()
-    return [str(r["created_at"]) for r in rows]
+    return [(str(r["created_at"]), r["h1_id"], r["h2_id"],
+             r["elo_after_h1"], r["elo_after_h2"]) for r in rows]
 
 
 async def _hypothesis_created_ats(db_path: str, run_id: str) -> dict[str, str]:
@@ -83,14 +85,13 @@ async def read_run(
     """Read a completed run's SQLite into a BenchRun (pure read, no tokens)."""
     store = StateStore(db_path)
     hyps = await store.list_hypotheses(run_id, status="active")
-    matches = await store.list_matches(run_id)
-    match_ts = await _match_created_ats(db_path, run_id)
+    match_rows = await _ordered_match_rows(db_path, run_id)
     hyp_ts = await _hypothesis_created_ats(db_path, run_id)
     bench_hyps = [
         BenchHypothesis(
             id=h.id, text=h.text, summary=h.summary, elo_rating=h.elo_rating,
             created_at=hyp_ts.get(h.id, ""), generation_method=h.generation_method,
-            elo_trajectory=trajectory_from_matches(h.id, matches, match_ts),
+            elo_trajectory=trajectory_from_matches(h.id, match_rows),
         )
         for h in hyps
     ]

@@ -7,15 +7,13 @@ from core.models import Hypothesis, TournamentMatch
 
 @pytest.mark.asyncio
 async def test_trajectory_from_matches_orders_and_filters():
-    matches = [
-        TournamentMatch(id="m1", run_id="r", h1_id="a", h2_id="b", winner_id="a",
-                        match_type="single_turn", elo_after_h1=1216.0, elo_after_h2=1184.0),
-        TournamentMatch(id="m2", run_id="r", h1_id="a", h2_id="c", winner_id="c",
-                        match_type="single_turn", elo_after_h1=1200.0, elo_after_h2=1216.0),
+    rows = [
+        ("t1", "a", "b", 1216.0, 1184.0),
+        ("t2", "a", "c", 1200.0, 1216.0),
     ]
-    traj = trajectory_from_matches("a", matches, created_ats=["t1", "t2"])
+    traj = trajectory_from_matches("a", rows)
     assert traj == [("t1", 1216.0), ("t2", 1200.0)]
-    traj_b = trajectory_from_matches("b", matches, created_ats=["t1", "t2"])
+    traj_b = trajectory_from_matches("b", rows)
     assert traj_b == [("t1", 1184.0)]
 
 
