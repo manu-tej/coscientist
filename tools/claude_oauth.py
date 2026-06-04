@@ -60,4 +60,8 @@ class ClaudeOAuthBackend:
             ],
             messages=[{"role": "user", "content": user_prompt}],
         )
-        return response.content[0].text
+        # Concatenate all text blocks; tolerate an empty content list (a refusal
+        # or no-text stop) by returning "" instead of IndexError-ing.
+        return "".join(
+            b.text for b in response.content if getattr(b, "type", None) == "text"
+        )

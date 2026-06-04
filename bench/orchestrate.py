@@ -62,11 +62,15 @@ async def run_concordance(args) -> dict:
     runs = []
     for i, goal in enumerate(goals, 1):
         t0 = time.monotonic()
-        run = await run_system(
-            goal, variant="full", seed=args.seed,
-            db_path=f"bench_runs/concordance_{goal.id}_{args.seed}.db",
-            max_tasks=max_tasks, max_time_seconds=getattr(args, "max_time", 900),
-        )
+        try:
+            run = await run_system(
+                goal, variant="full", seed=args.seed,
+                db_path=f"bench_runs/concordance_{goal.id}_{args.seed}.db",
+                max_tasks=max_tasks, max_time_seconds=getattr(args, "max_time", 900),
+            )
+        except Exception as exc:  # one bad goal must not sink the whole reading
+            print(f"  [{i}/{len(goals)}] {goal.id}: FAILED ({type(exc).__name__}: {exc}); skipping")
+            continue
         elos = [h.elo_rating for h in run.hypotheses]
         spread = (max(elos) - min(elos)) if elos else 0.0
         print(f"  [{i}/{len(goals)}] {goal.id}: {len(run.hypotheses)} hyps, "

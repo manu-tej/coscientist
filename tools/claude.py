@@ -28,4 +28,7 @@ class ClaudeClient:
             ],
             messages=[{"role": "user", "content": user_prompt}],
         )
-        return response.content[0].text
+        # Concatenate all text blocks; tolerate an empty content list.
+        return "".join(
+            b.text for b in response.content if getattr(b, "type", None) == "text"
+        )
