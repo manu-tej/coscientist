@@ -8,7 +8,9 @@ _INITIAL_ELO = 1200.0
 def elo_as_of(trajectory: list[tuple[str, float]], boundary_ts: str) -> float:
     """The hypothesis's Elo as of boundary_ts: the last trajectory point whose
     timestamp is <= boundary_ts, or the initial 1200 if none. Timestamps compare
-    lexically (ISO-8601 / sortable), matching SQLite CURRENT_TIMESTAMP ordering."""
+    lexically (ISO-8601 / sortable), matching SQLite CURRENT_TIMESTAMP ordering.
+    Assumes the trajectory is sorted ascending by timestamp (guaranteed when built
+    via trajectory_from_matches, which walks matches ORDER BY created_at)."""
     elo = _INITIAL_ELO
     for ts, value in trajectory:
         if ts <= boundary_ts:
@@ -22,7 +24,9 @@ def temporal_buckets(
     hypotheses: list[BenchHypothesis], n_buckets: int = 10, mode: str = "time"
 ) -> list[list[BenchHypothesis]]:
     """Partition hypotheses into n_buckets by created_at.
-    mode='time': equal-width time slices; mode='count': equal-count slices."""
+    mode='count': equal-count slices.
+    mode='time': rank-order partition (documented v1 simplification; true
+    equal-width calendar slicing is deferred — see plan §11 note)."""
     ordered = sorted(hypotheses, key=lambda h: h.created_at)
     if not ordered:
         return [[] for _ in range(n_buckets)]

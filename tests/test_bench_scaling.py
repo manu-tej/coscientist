@@ -33,3 +33,20 @@ def test_scaling_curve_monotone():
     assert best == sorted(best)        # non-decreasing
     assert curve[0]["bucket"] == 1
     assert "top10_avg_elo" in curve[0]
+
+
+def test_scaling_monotonicity_rising_and_flat():
+    from bench.scaling import scaling_monotonicity
+    rising = [{"bucket": i + 1, "best_elo": 1200.0 + i * 5} for i in range(5)]
+    res = scaling_monotonicity(rising, metric="best_elo")
+    assert abs(res["spearman_rho"] - 1.0) < 1e-9
+    assert res["tail_slope"] > 0
+    assert res["no_saturation"] is True
+
+    flat = [{"bucket": i + 1, "best_elo": 1200.0} for i in range(5)]
+    flat_res = scaling_monotonicity(flat, metric="best_elo")
+    # flat metric → spearman is nan (guarded), tail_slope 0, not "no saturation"
+    import math
+    assert math.isnan(flat_res["spearman_rho"])
+    assert flat_res["tail_slope"] == 0.0
+    assert flat_res["no_saturation"] is False
