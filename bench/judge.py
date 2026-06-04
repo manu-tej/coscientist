@@ -37,27 +37,57 @@ def build_judge_prompt(hypothesis: str, field: str = "computational biology") ->
 
 def parse_rubric_json(text: str) -> dict[str, int]:
     """Extract per-axis integer scores from the judge's text response.
-    Tolerates code fences and surrounding prose by grabbing the first {...} block."""
+    Tolerates code fences and surrounding prose by grabbing the first {...} block.
+    Raises BenchError on undecodable JSON or a missing/non-integer axis score."""
     blob = _extract_json_object(text)
-    data = json.loads(blob)
+    try:
+        data = json.loads(blob)
+    except json.JSONDecodeError as exc:
+        raise BenchError(f"Judge response is not valid JSON: {exc}") from exc
     scores: dict[str, int] = {}
     for axis in RUBRIC_AXES:
         node = data.get(axis, {})
-        if isinstance(node, dict):
-            scores[axis] = int(node.get("score"))
-        else:
-            scores[axis] = int(node)
+        raw = node.get("score") if isinstance(node, dict) else node
+        if raw is None:
+            raise BenchError(f"Judge response missing score for axis {axis!r}")
+        try:
+            scores[axis] = int(raw)
+        except (TypeError, ValueError) as exc:
+            raise BenchError(f"Non-integer score for axis {axis!r}: {raw!r}") from exc
     return scores
 
 
 def _extract_json_object(text: str) -> str:
-    fence = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, re.DOTALL)
+    """Return the JSON object string from a judge response. Prefers the first
+    ```json ... ``` fenced block; else the first balanced {...} object. Raises
+    BenchError if neither is found."""
+    fence = re.search(r"```(?:json)?\s*(.*?)```", text, re.DOTALL)
     if fence:
-        return fence.group(1)
-    brace = re.search(r"\{.*\}", text, re.DOTALL)
-    if brace:
-        return brace.group(0)
+        obj = _first_balanced_object(fence.group(1))
+        if obj is not None:
+            return obj
+    obj = _first_balanced_object(text)
+    if obj is not None:
+        return obj
     raise BenchError(f"No JSON object found in judge response: {text[:120]!r}")
+
+
+def _first_balanced_object(text: str) -> Optional[str]:
+    """Scan for the first brace-balanced top-level object (handles nesting),
+    so we don't over-capture across multiple objects like a greedy regex would."""
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    for i in range(start, len(text)):
+        c = text[i]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    return None
 
 
 def weighted_total(scores: dict[str, int], weights: Optional[dict[str, float]] = None) -> float:

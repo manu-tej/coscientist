@@ -50,3 +50,26 @@ async def test_judge_score_returns_axes_and_total():
     result = await j.score("a hypothesis", field="computational biology")
     assert result["scores"] == {a: 4 for a in RUBRIC_AXES}
     assert result["total"] == 4.0
+
+
+def test_parse_rubric_json_raises_on_no_json():
+    with pytest.raises(BenchError):
+        parse_rubric_json("there is no json here at all")
+
+
+def test_parse_rubric_json_raises_on_missing_score():
+    import json as _json
+    payload = _json.dumps({"novelty": {"score": 4}, "feasibility": {"score": 3},
+                           "correctness": {"score": 5}})  # impact missing
+    with pytest.raises(BenchError):
+        parse_rubric_json(payload)
+
+
+def test_parse_rubric_json_first_of_two_fenced_blocks():
+    payload = (
+        "reasoning:\n```json\n{\"novelty\":{\"score\":2},\"feasibility\":{\"score\":2},"
+        "\"correctness\":{\"score\":2},\"impact\":{\"score\":2}}\n```\n"
+        "ignore:\n```json\n{\"novelty\":{\"score\":9}}\n```"
+    )
+    scores = parse_rubric_json(payload)
+    assert scores["novelty"] == 2     # first block wins, not the 9
