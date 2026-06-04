@@ -139,7 +139,12 @@ def pairwise_consistent_winner(
     order1: tuple[str, str], order2: tuple[str, str],
 ) -> Optional[str]:
     """A pairwise win counts only if consistent across position orders (§7).
-    Returns the consistent winner id, or None (tie) on disagreement."""
+    Returns the consistent winner id, or None (tie) on disagreement.
+    Guards that order2 is genuinely a position swap of the same pair."""
+    if set(order1) != set(order2):
+        raise BenchError(
+            f"position-swap requires the same pair in both orders, got {order1} and {order2}"
+        )
     return winner_order1 if winner_order1 == winner_order2 else None
 
 

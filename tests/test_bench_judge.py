@@ -104,3 +104,15 @@ def test_krippendorff_alpha_perfect_agreement():
     }
     alpha = krippendorff_alpha_per_axis(ratings)
     assert abs(alpha["novelty"] - 1.0) < 1e-9
+
+
+def test_pairwise_consistent_winner_rejects_mismatched_pair():
+    with pytest.raises(BenchError):
+        pairwise_consistent_winner("A", "A", order1=("A", "B"), order2=("A", "C"))
+
+
+def test_krippendorff_alpha_partial_agreement_below_one():
+    # judges disagree on some items → alpha strictly below 1.0
+    ratings = {"novelty": [[4, 3, 5, 2], [4, 4, 5, 1], [3, 3, 4, 2]]}
+    alpha = krippendorff_alpha_per_axis(ratings)
+    assert alpha["novelty"] < 1.0
