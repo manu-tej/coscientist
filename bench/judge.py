@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import statistics
 from typing import Optional, Protocol
 
 from bench.errors import BenchError
@@ -122,3 +123,48 @@ class Judge:
         raw = await self.backend.score_text("You are a rigorous scientific evaluator.", prompt)
         scores = parse_rubric_json(raw)
         return {"scores": scores, "total": weighted_total(scores, self.weights)}
+
+
+def panel_median(panel: list[dict[str, int]]) -> dict[str, int]:
+    """Aggregate a panel of per-axis score dicts by per-axis median (rounded to int)."""
+    out: dict[str, int] = {}
+    for axis in RUBRIC_AXES:
+        vals = [p[axis] for p in panel if axis in p]
+        out[axis] = int(round(statistics.median(vals))) if vals else 0
+    return out
+
+
+def pairwise_consistent_winner(
+    winner_order1: str, winner_order2: str,
+    order1: tuple[str, str], order2: tuple[str, str],
+) -> Optional[str]:
+    """A pairwise win counts only if consistent across position orders (§7).
+    Returns the consistent winner id, or None (tie) on disagreement."""
+    return winner_order1 if winner_order1 == winner_order2 else None
+
+
+def krippendorff_alpha_per_axis(
+    ratings_by_axis: dict[str, list[list[float]]]
+) -> dict[str, float]:
+    """Krippendorff's α (ordinal) per axis. Input: axis -> reliability matrix
+    (rows = judges, cols = items)."""
+    import krippendorff
+
+    out: dict[str, float] = {}
+    for axis, matrix in ratings_by_axis.items():
+        out[axis] = float(
+            krippendorff.alpha(reliability_data=matrix, level_of_measurement="ordinal")
+        )
+    return out
+
+
+async def score_panel(
+    judges: list["Judge"], hypothesis: str, field: str = "computational biology"
+) -> dict:
+    """Score one hypothesis with a panel of ≥3 judges; aggregate by median."""
+    import asyncio
+    results = await asyncio.gather(*(j.score(hypothesis, field=field) for j in judges))
+    per_axis = [r["scores"] for r in results]
+    med = panel_median(per_axis)
+    return {"scores": med, "total": weighted_total(med),
+            "panel": per_axis, "n_judges": len(judges)}

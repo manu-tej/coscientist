@@ -73,3 +73,34 @@ def test_parse_rubric_json_first_of_two_fenced_blocks():
     )
     scores = parse_rubric_json(payload)
     assert scores["novelty"] == 2     # first block wins, not the 9
+
+
+from bench.judge import (
+    panel_median, pairwise_consistent_winner, krippendorff_alpha_per_axis,
+)
+
+
+def test_panel_median_per_axis():
+    panel = [
+        {"novelty": 4, "feasibility": 3, "correctness": 5, "impact": 2},
+        {"novelty": 2, "feasibility": 3, "correctness": 4, "impact": 2},
+        {"novelty": 3, "feasibility": 5, "correctness": 4, "impact": 1},
+    ]
+    med = panel_median(panel)
+    assert med["novelty"] == 3
+    assert med["feasibility"] == 3
+    assert med["correctness"] == 4
+    assert med["impact"] == 2
+
+
+def test_pairwise_consistent_winner():
+    assert pairwise_consistent_winner("A", "A", order1=("A", "B"), order2=("B", "A")) == "A"
+    assert pairwise_consistent_winner("A", "B", order1=("A", "B"), order2=("B", "A")) is None
+
+
+def test_krippendorff_alpha_perfect_agreement():
+    ratings = {
+        "novelty": [[4, 3, 5, 2], [4, 3, 5, 2], [4, 3, 5, 2]],
+    }
+    alpha = krippendorff_alpha_per_axis(ratings)
+    assert abs(alpha["novelty"] - 1.0) < 1e-9
