@@ -50,3 +50,24 @@ def test_cuped_adjust_reduces_variance():
     adj = cuped_adjust(y, covariate)
     assert statistics.pstdev(adj) <= statistics.pstdev(y) + 1e-9
     assert abs(statistics.mean(adj) - statistics.mean(y)) < 1e-9   # unbiased mean
+
+
+def test_variant_config_unknown_raises():
+    import pytest
+    with pytest.raises(ValueError):
+        variant_config("bogus_variant")
+
+
+def test_paired_wilcoxon_all_identical_is_nan():
+    import math
+    res = paired_wilcoxon([0.5, 0.6, 0.7], [0.5, 0.6, 0.7])   # all-zero deltas
+    assert math.isnan(res["p_value"])
+    assert res["median_delta"] == 0.0
+    assert res["n"] == 3
+
+
+def test_cuped_adjust_passthrough_when_degenerate():
+    # n<2 → unchanged
+    assert cuped_adjust([0.5], [0.3]) == [0.5]
+    # zero-variance covariate → unchanged
+    assert cuped_adjust([0.5, 0.7, 0.9], [0.4, 0.4, 0.4]) == [0.5, 0.7, 0.9]

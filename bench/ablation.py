@@ -39,7 +39,7 @@ def paired_wilcoxon(full_scores: list[float], ablated_scores: list[float]) -> di
 
     deltas = [f - a for f, a in zip(full_scores, ablated_scores)]
     nonzero = [d for d in deltas if d != 0]
-    if len(nonzero) < 1:
+    if not nonzero:
         return {"p_value": float("nan"), "median_delta": 0.0, "n": len(deltas)}
     try:
         stat, p = wilcoxon(full_scores, ablated_scores)

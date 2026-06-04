@@ -136,6 +136,15 @@ async def run_system(
     from agents.meta_review import MetaReviewAgent
 
     cfg = _load_yaml_config(config_yaml)
+    if ranking_mode not in ("elo", "absolute"):
+        raise ValueError(f"Unknown ranking_mode: {ranking_mode!r} (expected 'elo' or 'absolute')")
+    if ranking_mode == "absolute":
+        raise NotImplementedError(
+            "ranking_mode='absolute' (the no_tournament ablation's absolute judge-score "
+            "sort) is deferred to the v1 capstone run loop (see plan §16/E4). It is NOT "
+            "yet wired into run_system; refusing to run rather than silently behaving like "
+            "the 'full' variant."
+        )
     run_id = uuid.uuid4().hex[:8]
     db_path = db_path or f"bench_runs/{goal.id}_{variant}_{seed}_{run_id}.db"
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
