@@ -31,3 +31,20 @@ async def test_best_of_n_picks_highest_judge_score():
 
 def test_single_shot_prompt_mentions_goal_placeholder():
     assert "{goal}" in SINGLE_SHOT_PROMPT
+
+
+@pytest.mark.asyncio
+async def test_all_of_n_returns_all_samples_as_reference():
+    from bench.goalset import BenchGoal
+    from bench.baseline import all_of_n
+    goal = BenchGoal(id="g1", goal="propose")
+    counter = iter(range(3))
+
+    async def gen(prompt):
+        return f"sample {next(counter)}"
+
+    hyps = await all_of_n(goal, gen, n=3)
+    assert len(hyps) == 3
+    assert all(h.generation_method == "reference" for h in hyps)
+    assert [h.id for h in hyps] == ["reference-g1-0", "reference-g1-1", "reference-g1-2"]
+    assert {h.text for h in hyps} == {"sample 0", "sample 1", "sample 2"}

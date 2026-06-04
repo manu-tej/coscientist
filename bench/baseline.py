@@ -35,6 +35,8 @@ async def best_of_n(
 ) -> list[BenchHypothesis]:
     """Sample n single-shot hypotheses; keep the best by judge score.
     Controls for 'the gain is just more sampling' (§9)."""
+    if n <= 0:
+        return []
     prompt = SINGLE_SHOT_PROMPT.format(goal=goal.goal)
     texts = await asyncio.gather(*(generate(prompt) for _ in range(n)))
     scores = await asyncio.gather(*(judge_score(t) for t in texts))
