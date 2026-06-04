@@ -30,6 +30,12 @@ def compute_weights(stats: SystemStats, thresholds: WeightThresholds) -> dict[Ag
     # Boost Generation if pool is small
     if stats.n_hypotheses < thresholds.min_hypothesis_count:
         weights[AgentType.GENERATION] *= 2.5
+    else:
+        # Pool is populated → focus on Ranking so the tournament plays enough
+        # matches to spread Elo. Without this, Ranking is sampled ~1/7 of the
+        # time and Elo barely drifts from 1200, collapsing concordance to 2-3
+        # buckets. Single-turn matches are cheap (1 call), so this is low-cost.
+        weights[AgentType.RANKING] *= 3.0
     # Boost Meta-review if stale
     if stats.last_meta_review_age > thresholds.meta_review_interval:
         weights[AgentType.META_REVIEW] = 2.0

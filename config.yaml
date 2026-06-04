@@ -24,8 +24,8 @@ supervisor:
 
 tournament:
   elo_initial: 1200.0
-  elo_k_factor: 32.0
-  multi_turn_threshold: 1350.0
+  elo_k_factor: 48.0          # faster Elo movement → wider spread for concordance (was 32)
+  multi_turn_threshold: 1500.0   # keep most eval matches single-turn/cheap (was 1350)
   max_debate_turns: 10
 
 proximity:

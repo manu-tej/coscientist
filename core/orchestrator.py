@@ -106,14 +106,15 @@ class AgentRunner:
         if len(hypotheses) < 2:
             return
         similar = await self.store.get_similar_pairs(self.config.run_id, threshold=0.0)
-        pairs = select_match_pairs(hypotheses, similar, n_pairs=1)
-        if not pairs:
-            return
-        h1, h2 = pairs[0]
-        review_1 = await self._review_text(h1.id)
-        review_2 = await self._review_text(h2.id)
-        match = await self.ranking.run_match(h1, h2, self.config, review_1, review_2)
-        await self.store.save_match_and_elos(match)
+        # Run several matches per ranking task so the tournament accumulates the
+        # match volume needed to spread Elo (single-turn matches are cheap). The
+        # pairs are non-overlapping, so in-place Elo updates don't collide.
+        pairs = select_match_pairs(hypotheses, similar, n_pairs=task.extra.get("n_pairs", 3))
+        for h1, h2 in pairs:
+            review_1 = await self._review_text(h1.id)
+            review_2 = await self._review_text(h2.id)
+            match = await self.ranking.run_match(h1, h2, self.config, review_1, review_2)
+            await self.store.save_match_and_elos(match)
 
     async def _run_proximity(self, task: AgentTask) -> None:
         hypotheses = await self.store.list_hypotheses(self.config.run_id)
