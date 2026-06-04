@@ -25,3 +25,33 @@ def test_concordance_from_runs_scores_against_gold(tmp_path):
     assert stats["n_rows"] == 3
     assert "spearman_rho" in stats
     assert "blue_minus_red" in stats
+
+
+class _Args:
+    def __init__(self, **kw):
+        self.limit = 5
+        self.full = False
+        self.backend = "api"
+        self.yes = True
+        self.command = "concordance"
+        for k, v in kw.items():
+            setattr(self, k, v)
+
+
+@pytest.mark.asyncio
+async def test_run_command_proceed_returns_zero(capsys, monkeypatch):
+    import bench.orchestrate as orch
+    # auto-confirm via --yes; stub run loop returns 0
+    rc = await orch.run_command(_Args(yes=True))
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "§16" in out or "capstone" in out.lower()
+
+
+@pytest.mark.asyncio
+async def test_run_command_decline_returns_one(monkeypatch):
+    import bench.orchestrate as orch
+    import bench.cli as cli
+    monkeypatch.setattr(cli, "_confirm", lambda est, backend, assume_yes: False)
+    rc = await orch.run_command(_Args(yes=False))
+    assert rc == 1

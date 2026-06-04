@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from bench.goalset import BenchGoal, load_goalset
+from bench.goalset import BenchGoal
 from bench.runner import BenchRun
 from bench.datasets.gpqa import score_answer
 from bench.concordance import (
     ScoredHypothesis, concordance_stats, blue_minus_red_spread,
 )
-from bench.report import build_report, render_markdown
-from bench.manifest import system_version
 
 
 def concordance_from_runs(
@@ -38,7 +36,7 @@ async def run_command(args) -> int:
     path this would: load goals → manifest check → run_system (or reuse) →
     compute tier metrics → write report. v1 wires concordance end-to-end; other
     commands assemble from the same captured runs (run-reuse, §17.2)."""
-    from bench.cost import estimate_cost, format_estimate
+    from bench.cost import estimate_cost
     from bench.cli import _confirm
 
     # Cost gate (all token-spending commands)
