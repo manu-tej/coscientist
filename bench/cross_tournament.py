@@ -15,13 +15,13 @@ VerdictFn = Callable[[BenchHypothesis, BenchHypothesis], Awaitable[str]]
 async def _adjudicate(
     a: BenchHypothesis, b: BenchHypothesis, verdict: VerdictFn, position_swap: bool
 ) -> str | None:
-    """Return winner id, or None for a tie. With position_swap, verdict is called
-    twice; both results must agree on the same winner (§7). A disagreement is
-    treated as a tie — no Elo change."""
+    """Return winner id, or None for a tie. With position_swap, the pair is judged
+    in both positions (a,b) and (b,a); a win counts only if the SAME id wins both
+    orders, neutralizing the judge's position bias (§7)."""
     w1 = await verdict(a, b)
     if not position_swap:
         return w1
-    w2 = await verdict(a, b)
+    w2 = await verdict(b, a)   # SWAPPED order — this is the whole point
     return w1 if w1 == w2 else None
 
 

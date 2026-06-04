@@ -24,14 +24,28 @@ async def test_cross_tournament_deterministic_verdicts():
 
 
 @pytest.mark.asyncio
-async def test_cross_tournament_position_swap_tie_no_update():
+async def test_cross_tournament_position_swap_detects_position_bias():
+    # A judge that ALWAYS favors the first-listed hypothesis. Under position-swap,
+    # it picks `a` in (a,b) and `b` in (b,a) -> inconsistent -> tie -> no Elo change.
     pools = {"a": [_bh("X")], "b": [_bh("Y")]}
-    calls = {"n": 0}
 
-    async def flaky_verdict(a, b):
-        calls["n"] += 1
-        return a.id if calls["n"] % 2 == 1 else b.id
+    async def position_biased_verdict(a, b):
+        return a.id   # always favors first position
 
-    elos = await run_cross_tournament(pools, flaky_verdict, n_rounds=1, seed=0,
-                                      position_swap=True)
-    assert elos["X"] == elos["Y"] == 1200.0
+    elos = await run_cross_tournament(pools, position_biased_verdict, n_rounds=1,
+                                      seed=0, position_swap=True)
+    assert elos["X"] == elos["Y"] == 1200.0   # position bias neutralized -> tie
+
+
+@pytest.mark.asyncio
+async def test_cross_tournament_position_swap_consistent_winner_updates():
+    # A judge with a genuine preference (X always beats Y regardless of position)
+    # IS consistent across swap -> the win counts -> Elo diverges.
+    pools = {"a": [_bh("X")], "b": [_bh("Y")]}
+
+    async def real_pref_verdict(a, b):
+        return "X"   # X wins no matter which position it's in
+
+    elos = await run_cross_tournament(pools, real_pref_verdict, n_rounds=1,
+                                      seed=0, position_swap=True)
+    assert elos["X"] > elos["Y"]   # consistent winner -> update happens
