@@ -89,6 +89,8 @@ def concordance_stats(
 
 def _logistic_correct_on_elo(rows: list[ScoredHypothesis]) -> tuple[float, float]:
     """Fit correct ~ elo via statsmodels GLM (binomial). Returns (coef, p) for elo.
+    NOTE: elo is standardized, so coef is per-SD-of-Elo (sign and p-value are what
+    matter for the monotonicity claim, not the raw magnitude).
     Falls back to (nan, nan) if degenerate (all-correct / all-wrong / singular)."""
     import numpy as np
     import statsmodels.api as sm
@@ -120,6 +122,9 @@ def reference_per_bucket(
     for floor, items in buckets.items():
         if len(items) < min_support:
             continue
+        # Hypothesis-count-weighted (NOT unique-question): a question contributing
+        # k hypotheses to this bucket counts k times. This matches per_bucket_accuracy
+        # (blue), which is also per-hypothesis, so blue-red stays apples-to-apples.
         qids = [it.question_id for it in items]
         refs = [reference_accuracy[q] for q in qids if q in reference_accuracy]
         if refs:
@@ -167,6 +172,7 @@ def blue_minus_red_spread(
         return {"mean_spread": point, "ci_low": float("nan"),
                 "ci_high": float("nan"), "n_buckets": len(common)}
     boot_means.sort()
-    lo = boot_means[int(0.025 * len(boot_means))]
-    hi = boot_means[int(0.975 * len(boot_means)) - 1]
+    n = len(boot_means)
+    lo = boot_means[min(int(0.025 * n), n - 1)]
+    hi = boot_means[min(int(0.975 * n), n - 1)]
     return {"mean_spread": point, "ci_low": lo, "ci_high": hi, "n_buckets": len(common)}
