@@ -58,3 +58,16 @@ def test_researchbench_dataframe_to_goals():
     assert goals[0].gold_hypothesis == "X is driven by gene G."
     assert "What drives X?" in goals[0].goal
     assert goals[0].domain == "computational biology"
+
+
+def test_researchbench_handles_null_background():
+    import pandas as pd
+    from bench.datasets.researchbench import dataframe_to_goals
+    df = pd.DataFrame([
+        {"id": "rb-3", "subject": "Biology", "year": 2024,
+         "question": "What drives Y?", "background": None, "hypothesis": "Y by gene H."},
+    ])
+    goals = dataframe_to_goals(df)
+    assert len(goals) == 1
+    assert "Background" not in goals[0].goal     # null background omitted, not "None"
+    assert goals[0].goal == "What drives Y?"

@@ -8,8 +8,8 @@ _BIO_SUBJECTS = {"biology", "cell_biology", "cell biology", "molecular biology"}
 
 
 def _row_to_goal(row: dict) -> BenchGoal:
-    question = str(row.get("question", "")).strip()
-    background = str(row.get("background", "")).strip()
+    question = str(row.get("question") or "").strip()
+    background = str(row.get("background") or "").strip()
     goal_text = question if not background else f"{question}\n\nBackground: {background}"
     return BenchGoal(
         id=str(row["id"]),
