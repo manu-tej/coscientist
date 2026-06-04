@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
-from pathlib import Path
 
 from bench.cost import estimate_cost, format_estimate
 
