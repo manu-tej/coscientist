@@ -1,6 +1,12 @@
+provider: claude-code          # claude-code | anthropic | codex ; env override COSCIENTIST_PROVIDER
+
 anthropic:
   model_strong: claude-opus-4-7
   model_fast: claude-sonnet-4-6
+
+claude_code:
+  model_strong: opus
+  model_fast: sonnet
 
 supervisor:
   n_workers: 4

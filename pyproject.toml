@@ -20,6 +20,7 @@ dependencies = [
     "krippendorff>=0.6.0",
     "datasets>=2.19.0",
     "pandas>=2.2.0",
+    "claude-agent-sdk>=0.2.0",
 ]
 
 [project.optional-dependencies]

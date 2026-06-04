@@ -17,7 +17,6 @@ from core.config_parser import ConfigParser
 from core.orchestrator import AgentRunner
 from core.supervisor import Supervisor, SupervisorSettings
 from core.stats import WeightThresholds
-from tools.claude import ClaudeClient
 from tools.search import SearchTool
 from agents.base import BaseAgent
 from agents.generation import GenerationAgent
@@ -43,10 +42,8 @@ async def main(goal: str) -> None:
     store = StateStore(cfg["db_path"])
     await store.init_db()
 
-    client = ClaudeClient(
-        model_strong=cfg["anthropic"]["model_strong"],
-        model_fast=cfg["anthropic"]["model_fast"],
-    )
+    from tools.llm import make_backend
+    client = make_backend(cfg)
     prompts_dir = Path("prompts")
     base = BaseAgent(client=client, prompts_dir=prompts_dir)
 
