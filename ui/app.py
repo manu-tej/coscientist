@@ -51,6 +51,14 @@ pre.tx { white-space:pre-wrap; font-size:11.5px; background:#fafafa; border:1px 
 .eval-tbl { width:100%; border-collapse:collapse; font-size:12.5px; margin-top:8px; }
 .eval-tbl td,.eval-tbl th { border:1px solid #eee; padding:3px 8px; text-align:left; }
 .pass { color:#16a34a; font-weight:600; } .fail { color:#dc2626; font-weight:600; }
+.answer-row { display:flex; gap:12px; align-items:stretch; margin:8px 0; }
+.ans-box { border:1px solid #e7e9ee; border-radius:10px; padding:10px 14px; min-width:120px; text-align:center; }
+.ans-box .lbl { color:#6b7280; font-size:11px; margin-bottom:4px; }
+.ans-box .big { font-size:26px; font-weight:800; color:#111827; }
+.ans-box.verdict { display:flex; align-items:center; font-size:16px; }
+.chips { margin:6px 0; } .chips span { display:inline-block; border-radius:999px; padding:2px 10px; margin:3px 4px 0 0; font-size:12.5px; }
+.chip-hit { background:#dcfce7; color:#166534; border:1px solid #86efac; }
+.chip-miss { background:#fee2e2; color:#991b1b; border:1px solid #fecaca; text-decoration:line-through; }
 """
 
 _BOILER = re.compile(
@@ -197,6 +205,48 @@ def render_eval(report_path: str) -> str:
     return f"<pre class='full'>{_esc(str(rep)[:2000])}</pre>"
 
 
+def render_answer(db_path, run_id) -> str:
+    """The system's final answer (top-Elo hypothesis) vs the known ground truth."""
+    gold = explore.resolve_gold(db_path)
+    hyps = explore.active_hypotheses(db_path, run_id)
+    if not hyps:
+        return "<p style='color:#9ca3af;padding:8px'>No hypotheses yet…</p>"
+    top = hyps[0]
+    if gold["kind"] == "gpqa":
+        from bench.datasets.gpqa import parse_mcq_answer
+        sys_ans = parse_mcq_answer(top["text"])
+        ga = gold.get("gold_answer")
+        ok = bool(sys_ans and ga and sys_ans == ga)
+        verdict = ('<span class="pass">✓ CORRECT</span>' if ok else
+                   ('<span class="fail">✗ WRONG</span>' if ga else "<i>gold unknown</i>"))
+        return (f'<div class="eval-card"><h4>Final answer vs known answer</h4>'
+                f'<div class="answer-row">'
+                f'<div class="ans-box"><div class="lbl">system answer · top-Elo {top["elo"]}</div>'
+                f'<div class="big">{sys_ans or "—"}</div></div>'
+                f'<div class="ans-box"><div class="lbl">known answer</div><div class="big">{ga or "?"}</div></div>'
+                f'<div class="ans-box verdict">{verdict}</div></div>'
+                f'<details open><summary>top hypothesis — the system\'s answer &amp; reasoning</summary>'
+                f'<div class="full">{_esc(top["text"])}</div></details></div>')
+    if gold["kind"] == "rediscover":
+        from bench.goldset import entity_in_text
+        ents = gold["gold_entities"]
+        blob = " ".join(h["summary"] + " " + h["text"] for h in hyps)
+        hit = [e for e in ents if entity_in_text(e, blob)]
+        miss = [e for e in ents if e not in hit]
+        chips = ("".join(f'<span class="chip-hit">✓ {_esc(e)}</span>' for e in hit) +
+                 "".join(f'<span class="chip-miss">{_esc(e)}</span>' for e in miss))
+        return (f'<div class="eval-card"><h4>Rediscovery vs known finding</h4>'
+                f'<div class="eval-kv">Gold-entity recall <b>{len(hit)}/{len(ents)}</b> '
+                f'— which known entities the hypotheses surfaced:</div>'
+                f'<div class="chips">{chips}</div>'
+                f'<div class="eval-kv" style="margin-top:10px"><b>Known finding:</b> {_esc(gold["gold_finding"])}</div>'
+                f'<details open><summary>top hypothesis (Elo {top["elo"]})</summary>'
+                f'<div class="full">{_esc(top["text"])}</div></details></div>')
+    return (f'<p style="color:#9ca3af;padding:8px">No ground-truth mapping for this run '
+            f'(<code>{_esc(gold.get("task",""))}</code>). Top hypothesis (Elo {top["elo"]}):</p>'
+            f'<div class="full">{_esc(top["text"])}</div>')
+
+
 # ── app ────────────────────────────────────────────────────────────────────
 
 def build_app(runs: list[dict], reports_dir: str = "bench_runs") -> gr.Blocks:
@@ -213,8 +263,8 @@ def build_app(runs: list[dict], reports_dir: str = "bench_runs") -> gr.Blocks:
         db, rid = _resolve(sel)
         if not db:
             empty = "<p style='color:#9ca3af'>No run selected.</p>"
-            return empty, empty, empty, empty
-        return (_stats_html(db, rid), render_hypotheses(db, rid),
+            return empty, empty, empty, empty, empty
+        return (_stats_html(db, rid), render_answer(db, rid), render_hypotheses(db, rid),
                 render_tournament(db, rid), render_timeline(db, rid))
 
     async def on_inject(sel, text):
@@ -234,6 +284,8 @@ def build_app(runs: list[dict], reports_dir: str = "bench_runs") -> gr.Blocks:
         stats_md = gr.HTML()
 
         with gr.Tabs():
+            with gr.Tab("Answer vs gold"):
+                answer_html = gr.HTML()
             with gr.Tab("Hypotheses"):
                 hyp_html = gr.HTML()
             with gr.Tab("Tournament"):
@@ -252,7 +304,7 @@ def build_app(runs: list[dict], reports_dir: str = "bench_runs") -> gr.Blocks:
             inject_btn = gr.Button("Submit", size="sm")
             inject_btn.click(on_inject, inputs=[run_dd, inject_box], outputs=inject_box)
 
-        outs = [stats_md, hyp_html, tour_html, tl_html]
+        outs = [stats_md, answer_html, hyp_html, tour_html, tl_html]
         run_dd.change(refresh_all, inputs=run_dd, outputs=outs)
         refresh_btn.click(refresh_all, inputs=run_dd, outputs=outs)
         app.load(refresh_all, inputs=run_dd, outputs=outs)

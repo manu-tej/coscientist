@@ -7,10 +7,61 @@ so the explorer can switch freely between question runs.
 """
 from __future__ import annotations
 
+import functools
 import glob
 import json
 import os
+import re
 import sqlite3
+
+
+@functools.lru_cache(maxsize=1)
+def _gpqa_gold() -> dict:
+    """{goal_id: gold_letter} for GPQA-bio (cached HF load; {} if unavailable)."""
+    try:
+        from bench.datasets.gpqa import load_gpqa_hf
+        return {g.id: g.gold_answer for g in load_gpqa_hf(all_subjects=True)}
+    except Exception:
+        return {}
+
+
+@functools.lru_cache(maxsize=1)
+def _rediscover_gold() -> dict:
+    """{task_id: BenchGoal} for the curated BiomniBench goldset."""
+    try:
+        from bench.goalset import load_goalset
+        return {g.id: g for g in load_goalset("bench/datasets/biomnibench_goldset.jsonl")}
+    except Exception:
+        return {}
+
+
+def resolve_gold(db_path: str) -> dict:
+    """Map a run DB (by its filename's task id) to its ground truth.
+    Returns {kind, task, gold_answer?|gold_entities?+gold_finding?}."""
+    base = os.path.splitext(os.path.basename(db_path))[0]
+    m = re.match(r"[a-zA-Z0-9]+_(.+?)_\d+$", base)
+    task = m.group(1) if m else base
+    if task.startswith("gpqa"):
+        return {"kind": "gpqa", "task": task, "gold_answer": _gpqa_gold().get(task)}
+    if task.startswith("da-"):
+        g = _rediscover_gold().get(task)
+        if g:
+            return {"kind": "rediscover", "task": task,
+                    "gold_entities": g.gold_entities,
+                    "gold_finding": g.metadata.get("gold_finding", "")}
+    return {"kind": None, "task": task}
+
+
+def active_hypotheses(db_path: str, run_id: str) -> list[dict]:
+    """All active hypotheses (text + elo) ranked by Elo, top first."""
+    c = _conn(db_path)
+    try:
+        rows = c.execute(
+            "SELECT text, summary, elo_rating FROM hypotheses "
+            "WHERE run_id=? AND status='active' ORDER BY elo_rating DESC", (run_id,)).fetchall()
+    finally:
+        c.close()
+    return [{"text": r["text"], "summary": r["summary"], "elo": round(r["elo_rating"], 1)} for r in rows]
 
 
 def list_eval_reports(path: str = "bench_runs") -> list[str]:
