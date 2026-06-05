@@ -4,10 +4,20 @@ import yaml
 from pathlib import Path
 
 import gradio as gr
+from markdown_it import MarkdownIt
 
 from core.state import StateStore
 from ui.data import inject_expert_hypothesis
 from ui import explore
+
+# Hypotheses come back as markdown (headers, bold, lists, comparison tables,
+# $$\boxed{X}$$). commonmark escapes any raw HTML in the source, so rendering
+# the model's own text is XSS-safe — no need to _esc() first.
+_MD = MarkdownIt("commonmark").enable("table")
+
+
+def _md(text: str) -> str:
+    return _MD.render(text or "")
 
 
 def load_config(path: str = "config.yaml") -> dict:
@@ -33,6 +43,18 @@ _CSS = """
 .bar > span { display:block; height:100%; background:linear-gradient(90deg,#6366f1,#22c55e); }
 details { margin-top:7px; } details > summary { cursor:pointer; color:#4f46e5; font-size:12px; }
 .full { white-space:pre-wrap; font-size:12.5px; color:#374151; background:#fafafa; border:1px solid #eee; border-radius:8px; padding:8px 10px; margin-top:6px; max-height:340px; overflow:auto; }
+.full.md { white-space:normal; line-height:1.5; }
+.full.md h1,.full.md h2,.full.md h3,.full.md h4 { margin:10px 0 5px; line-height:1.3; color:#111827; }
+.full.md h1 { font-size:16px; } .full.md h2 { font-size:14.5px; } .full.md h3,.full.md h4 { font-size:13px; }
+.full.md p { margin:6px 0; } .full.md ul,.full.md ol { margin:5px 0; padding-left:20px; }
+.full.md li { margin:2px 0; } .full.md code { background:#eef0f4; border-radius:4px; padding:1px 4px; font-size:11.5px; }
+.full.md pre { background:#f1f3f7; border:1px solid #e5e7eb; border-radius:6px; padding:7px 9px; overflow:auto; }
+.full.md pre code { background:none; padding:0; }
+.full.md table { border-collapse:collapse; margin:8px 0; font-size:11.5px; width:100%; }
+.full.md th,.full.md td { border:1px solid #e2e5ea; padding:3px 8px; text-align:left; vertical-align:top; }
+.full.md th { background:#f3f4f6; font-weight:600; }
+.full.md blockquote { border-left:3px solid #c7d2fe; margin:6px 0; padding:2px 10px; color:#4b5563; }
+.full.md hr { border:none; border-top:1px solid #e5e7eb; margin:9px 0; }
 .rev { font-size:12px; color:#444; border-left:3px solid #c7d2fe; padding:2px 8px; margin:5px 0; }
 .played { font-size:11.5px; color:#6b7280; margin-top:4px; }
 .played .w { color:#16a34a; } .played .l { color:#dc2626; }
@@ -122,7 +144,7 @@ def render_hypotheses(db_path, run_id) -> str:
             f'<div class="summary">{_esc(_clean(r["text"], 380))}</div>'
             f'<div class="bar"><span style="width:{pct}%"></span></div>'
             f'<details><summary>full text · reviews · match record</summary>'
-            f'<div class="full">{_esc(r["text"])}</div>'
+            f'<div class="full md">{_md(r["text"])}</div>'
             f'<div class="played">{played}</div>{revs}</details></div>')
     out.append("</div>")
     return "".join(out)
@@ -144,10 +166,10 @@ def render_tournament(db_path, run_id) -> str:
               if m["transcript"] else "")
         side1 = (f'<div class="side {s1}">{edelta(m["e1_before"], m["e1_after"], d1)}'
                  f'<details><summary>{_esc(_clean(m["h1"], 200))}</summary>'
-                 f'<div class="full">{_esc(m["h1"])}</div></details></div>')
+                 f'<div class="full md">{_md(m["h1"])}</div></details></div>')
         side2 = (f'<div class="side {s2}">{edelta(m["e2_before"], m["e2_after"], d2)}'
                  f'<details><summary>{_esc(_clean(m["h2"], 200))}</summary>'
-                 f'<div class="full">{_esc(m["h2"])}</div></details></div>')
+                 f'<div class="full md">{_md(m["h2"])}</div></details></div>')
         out.append(
             f'<div class="match-card"><div class="match-head">'
             f'<span class="rank">match #{m["n"]}</span>'
@@ -226,7 +248,7 @@ def render_answer(db_path, run_id) -> str:
                 f'<div class="ans-box"><div class="lbl">known answer</div><div class="big">{ga or "?"}</div></div>'
                 f'<div class="ans-box verdict">{verdict}</div></div>'
                 f'<details open><summary>top hypothesis — the system\'s answer &amp; reasoning</summary>'
-                f'<div class="full">{_esc(top["text"])}</div></details></div>')
+                f'<div class="full md">{_md(top["text"])}</div></details></div>')
     if gold["kind"] == "rediscover":
         from bench.goldset import entity_in_text
         ents = gold["gold_entities"]
@@ -241,10 +263,10 @@ def render_answer(db_path, run_id) -> str:
                 f'<div class="chips">{chips}</div>'
                 f'<div class="eval-kv" style="margin-top:10px"><b>Known finding:</b> {_esc(gold["gold_finding"])}</div>'
                 f'<details open><summary>top hypothesis (Elo {top["elo"]})</summary>'
-                f'<div class="full">{_esc(top["text"])}</div></details></div>')
+                f'<div class="full md">{_md(top["text"])}</div></details></div>')
     return (f'<p style="color:#9ca3af;padding:8px">No ground-truth mapping for this run '
             f'(<code>{_esc(gold.get("task",""))}</code>). Top hypothesis (Elo {top["elo"]}):</p>'
-            f'<div class="full">{_esc(top["text"])}</div>')
+            f'<div class="full md">{_md(top["text"])}</div>')
 
 
 # ── app ────────────────────────────────────────────────────────────────────
