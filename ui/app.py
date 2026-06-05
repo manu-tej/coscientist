@@ -111,7 +111,7 @@ def render_hypotheses(db_path, run_id) -> str:
             f'<span class="rank">#{i}</span><span class="elo">Elo {r["elo"]}</span>'
             f'<span class="method{exp}">{_esc(r["method"])}</span>'
             f'<span class="meta">{len(r["matches"])} matches ({wins}W) · {len(r["reviews"])} reviews</span></div>'
-            f'<div class="summary">{_esc(_clean(r["summary"]))}</div>'
+            f'<div class="summary">{_esc(_clean(r["text"], 380))}</div>'
             f'<div class="bar"><span style="width:{pct}%"></span></div>'
             f'<details><summary>full text · reviews · match record</summary>'
             f'<div class="full">{_esc(r["text"])}</div>'
@@ -132,18 +132,20 @@ def render_tournament(db_path, run_id) -> str:
         def edelta(b, a, d):
             cls = "up" if d >= 0 else "down"
             return f'<span class="e">{b}→{a} <span class="{cls}">({d:+})</span></span>'
-        tx = (f'<details><summary>debate transcript</summary><pre class="tx">{_esc(m["transcript"][:6000])}</pre></details>'
+        tx = (f'<details><summary>debate transcript</summary><pre class="tx">{_esc(m["transcript"][:30000])}</pre></details>'
               if m["transcript"] else "")
+        side1 = (f'<div class="side {s1}">{edelta(m["e1_before"], m["e1_after"], d1)}'
+                 f'<details><summary>{_esc(_clean(m["h1"], 200))}</summary>'
+                 f'<div class="full">{_esc(m["h1"])}</div></details></div>')
+        side2 = (f'<div class="side {s2}">{edelta(m["e2_before"], m["e2_after"], d2)}'
+                 f'<details><summary>{_esc(_clean(m["h2"], 200))}</summary>'
+                 f'<div class="full">{_esc(m["h2"])}</div></details></div>')
         out.append(
             f'<div class="match-card"><div class="match-head">'
             f'<span class="rank">match #{m["n"]}</span>'
             f'<span class="method">{m["type"]}</span>'
             f'<span class="meta">{_esc(m["created_at"])}</span></div>'
-            f'<div class="match-body">'
-            f'<div class="side {s1}">{edelta(m["e1_before"], m["e1_after"], d1)}{_esc(_clean(m["h1"], 140))}</div>'
-            f'<div class="vs">vs</div>'
-            f'<div class="side {s2}">{edelta(m["e2_before"], m["e2_after"], d2)}{_esc(_clean(m["h2"], 140))}</div>'
-            f'</div>{tx}</div>')
+            f'<div class="match-body">{side1}<div class="vs">vs</div>{side2}</div>{tx}</div>')
     out.append("</div>")
     return "".join(out)
 

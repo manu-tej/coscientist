@@ -63,8 +63,8 @@ def match_history(db_path: str, run_id: str) -> list[dict]:
     summaries, the winner, Elo before→after for each, type, and transcript."""
     c = _conn(db_path)
     try:
-        sums = {r["id"]: r["summary"] for r in
-                c.execute("SELECT id, summary FROM hypotheses WHERE run_id=?", (run_id,))}
+        texts = {r["id"]: r["text"] for r in
+                 c.execute("SELECT id, text FROM hypotheses WHERE run_id=?", (run_id,))}
         rows = c.execute(
             "SELECT * FROM tournament_matches WHERE run_id=? ORDER BY created_at, id",
             (run_id,),
@@ -76,8 +76,8 @@ def match_history(db_path: str, run_id: str) -> list[dict]:
         h1_won = m["winner_id"] == m["h1_id"]
         out.append({
             "n": i,
-            "h1": sums.get(m["h1_id"], m["h1_id"][:8]),
-            "h2": sums.get(m["h2_id"], m["h2_id"][:8]),
+            "h1": texts.get(m["h1_id"], m["h1_id"][:8]),
+            "h2": texts.get(m["h2_id"], m["h2_id"][:8]),
             "h1_won": h1_won,
             "type": m["match_type"],
             "e1_before": round(m["elo_before_h1"], 1), "e1_after": round(m["elo_after_h1"], 1),
