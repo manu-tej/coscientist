@@ -3,7 +3,7 @@ import yaml
 from pathlib import Path
 from core.state import StateStore
 from ui.data import (
-    get_ranked_hypotheses, get_research_overview,
+    get_ranked_hypotheses, get_research_overview, get_run_stats,
     inject_expert_hypothesis, submit_expert_review,
 )
 
@@ -34,6 +34,14 @@ def build_app(store: StateStore, run_id: str, supervisor_handle: dict) -> gr.Blo
     async def refresh_overview():
         return await get_research_overview(store, run_id)
 
+    async def refresh_stats():
+        s = await get_run_stats(store, run_id)
+        return (
+            f"**{s['n_hypotheses']}** hypotheses · **{s['n_matches']}** matches · "
+            f"top Elo **{s['top_elo']}** · spread **{s['elo_spread']}**\n\n"
+            f"_goal:_ {s['goal'][:160]}"
+        )
+
     async def on_inject(text):
         if text.strip():
             await inject_expert_hypothesis(store, run_id, text.strip())
@@ -46,10 +54,12 @@ def build_app(store: StateStore, run_id: str, supervisor_handle: dict) -> gr.Blo
 
     with gr.Blocks(title="AI Co-Scientist") as app:
         gr.Markdown("# AI Co-Scientist")
-        gr.Markdown(f"**Research goal run:** `{run_id}`")
+        gr.Markdown(f"**Run:** `{run_id}`")
+        stats_md = gr.Markdown("Loading…")
 
         with gr.Row():
             refresh_btn = gr.Button("Refresh", variant="primary")
+            auto_chk = gr.Checkbox(value=True, label="Auto-refresh (3s) — live tracking")
 
         with gr.Row():
             with gr.Column(scale=2):
@@ -71,8 +81,21 @@ def build_app(store: StateStore, run_id: str, supervisor_handle: dict) -> gr.Blo
 
         refresh_btn.click(refresh_hypotheses, outputs=hypotheses_md)
         refresh_btn.click(refresh_overview, outputs=overview_md)
+        refresh_btn.click(refresh_stats, outputs=stats_md)
         inject_btn.click(on_inject, inputs=inject_box, outputs=inject_box)
         review_btn.click(on_review, inputs=[review_id_box, review_box],
                          outputs=[review_id_box, review_box])
+
+        # Live tracking: tick every 3s; the checkbox toggles it on/off.
+        timer = gr.Timer(3.0)
+        timer.tick(refresh_hypotheses, outputs=hypotheses_md)
+        timer.tick(refresh_overview, outputs=overview_md)
+        timer.tick(refresh_stats, outputs=stats_md)
+        auto_chk.change(lambda on: gr.Timer(active=on), inputs=auto_chk, outputs=timer)
+
+        # Populate immediately on page load.
+        app.load(refresh_hypotheses, outputs=hypotheses_md)
+        app.load(refresh_overview, outputs=overview_md)
+        app.load(refresh_stats, outputs=stats_md)
 
     return app

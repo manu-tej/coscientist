@@ -41,6 +41,21 @@ async def inject_expert_hypothesis(store: StateStore, run_id: str, text: str) ->
     return h.id
 
 
+async def get_run_stats(store: StateStore, run_id: str) -> dict:
+    """Live counters for the run header: goal, #hypotheses, #matches, Elo range."""
+    cfg = await store.get_config(run_id)
+    hyps = await store.list_hypotheses(run_id, status="active")
+    matches = await store.list_matches(run_id)
+    elos = [h.elo_rating for h in hyps]
+    return {
+        "goal": cfg.goal if cfg else "",
+        "n_hypotheses": len(hyps),
+        "n_matches": len(matches),
+        "top_elo": round(max(elos), 1) if elos else 1200.0,
+        "elo_spread": round(max(elos) - min(elos), 1) if elos else 0.0,
+    }
+
+
 async def submit_expert_review(store: StateStore, hypothesis_id: str, critique: str) -> None:
     review = Review(
         id=str(uuid.uuid4()),
