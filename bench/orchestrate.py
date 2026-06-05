@@ -164,12 +164,30 @@ async def run_concordance(args) -> dict:
               f"Elo spread {spread:.0f}, {time.monotonic() - t0:.0f}s")
         runs.append(run)
 
-    stats = concordance_from_runs(goals, runs, reference_accuracy={},
+    # Difficulty correction (the paper's red line): sample N base-model responses
+    # per question so blue_minus_red_spread can subtract per-question difficulty
+    # from the Elo↔correctness signal. Off by default (cost); paper used 32.
+    ref_n = getattr(args, "reference_samples", 0)
+    reference_accuracy: dict[str, float] = {}
+    if ref_n > 0:
+        from bench.reference import reference_accuracy_for_goals, backend_generate
+        from bench.runner import _load_yaml_config
+        from tools.llm import make_backend
+        n_mcq = sum(1 for g in goals if g.gold_answer)
+        print(f"Sampling {ref_n} base-model reference responses/question for "
+              f"difficulty correction ({n_mcq} MCQ goals, ~{ref_n * n_mcq} extra calls)...")
+        backend = make_backend(_load_yaml_config("config.yaml"))
+        use_strong = getattr(args, "reference_strong", False)
+        reference_accuracy = await reference_accuracy_for_goals(
+            goals, backend_generate(backend, use_strong=use_strong), n_samples=ref_n)
+
+    stats = concordance_from_runs(goals, runs, reference_accuracy=reference_accuracy,
                                   min_support=min_support)
     return build_report({
         "concordance": stats,
         "meta": {"dataset": args.dataset, "n_questions": len(goals),
-                 "system_version": system_version(), "max_tasks": max_tasks},
+                 "system_version": system_version(), "max_tasks": max_tasks,
+                 "reference_samples": ref_n},
     })
 
 
@@ -183,7 +201,8 @@ async def run_command(args) -> int:
 
     limit = 198 if getattr(args, "full", False) else args.limit
     est = estimate_cost(C=limit, a=0, v=1,
-                        calls_per_run=getattr(args, "max_tasks", 30))
+                        calls_per_run=getattr(args, "max_tasks", 30),
+                        ref_samples_per_goal=getattr(args, "reference_samples", 0))
     if not _confirm(est, backend=args.backend, assume_yes=args.yes):
         print("Aborted before spending tokens.")
         return 1

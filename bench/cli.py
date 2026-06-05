@@ -26,6 +26,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     c = sub.add_parser("concordance"); common(c)
     c.add_argument("--dataset", default="gpqa-bio")
+    c.add_argument("--reference-samples", dest="reference_samples", type=int, default=0,
+                   help="base-model samples/question for difficulty correction "
+                        "(paper used 32; 0 = off). Adds ~N×#questions extra calls.")
+    c.add_argument("--reference-strong", dest="reference_strong", action="store_true",
+                   help="sample the reference from the strong model (default: fast, "
+                        "matching the Generation agent's tier).")
 
     rd = sub.add_parser("rediscover"); common(rd)
     rd.add_argument("--goals", default="bench/datasets/biomnibench_goldset.jsonl",
