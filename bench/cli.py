@@ -27,6 +27,10 @@ def build_parser() -> argparse.ArgumentParser:
     c = sub.add_parser("concordance"); common(c)
     c.add_argument("--dataset", default="gpqa-bio")
 
+    rd = sub.add_parser("rediscover"); common(rd)
+    rd.add_argument("--goals", default="bench/datasets/biomnibench_goldset.jsonl",
+                    help="jsonl of curated goals with gold_entities")
+
     s = sub.add_parser("scaling"); common(s)
     s.add_argument("--goals", default="comp_bio")
 
