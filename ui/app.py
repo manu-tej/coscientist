@@ -252,8 +252,15 @@ def render_answer(db_path, run_id) -> str:
 def build_app(runs: list[dict], reports_dir: str = "bench_runs") -> gr.Blocks:
     """Detailed explorer across runs. `runs` = explore.list_runs(...) output."""
     registry = {r["label"]: r for r in runs}
-    labels = list(registry.keys())
-    default = labels[0] if labels else ""
+    grouped = explore.runs_by_family(runs)  # {family: [runs]}, ordered
+    families = list(grouped.keys())
+    default_family = families[0] if families else ""
+
+    def _family_labels(fam):
+        return [r["label"] for r in grouped.get(fam, [])]
+
+    default_labels = _family_labels(default_family)
+    default = default_labels[0] if default_labels else ""
 
     def _resolve(sel):
         r = registry.get(sel) or (runs[0] if runs else None)
@@ -267,6 +274,12 @@ def build_app(runs: list[dict], reports_dir: str = "bench_runs") -> gr.Blocks:
         return (_stats_html(db, rid), render_answer(db, rid), render_hypotheses(db, rid),
                 render_tournament(db, rid), render_timeline(db, rid))
 
+    def on_family(fam):
+        """Switch benchmark family: repopulate the run picker and show its first run."""
+        labels = _family_labels(fam)
+        first = labels[0] if labels else ""
+        return (gr.Dropdown(choices=labels, value=first), *refresh_all(first))
+
     async def on_inject(sel, text):
         db, rid = _resolve(sel)
         if db and text.strip():
@@ -277,7 +290,9 @@ def build_app(runs: list[dict], reports_dir: str = "bench_runs") -> gr.Blocks:
         gr.HTML(f"<style>{_CSS}</style>")
         with gr.Row():
             gr.Markdown("### 🔬 AI Co-Scientist — run explorer")
-            run_dd = gr.Dropdown(choices=labels, value=default, label="Question / run",
+            family_dd = gr.Dropdown(choices=families, value=default_family,
+                                    label="Benchmark", scale=1, min_width=200)
+            run_dd = gr.Dropdown(choices=default_labels, value=default, label="Question / run",
                                  scale=3, min_width=320)
             refresh_btn = gr.Button("↻", scale=0, min_width=60)
             auto_chk = gr.Checkbox(value=True, label="Auto (3s)", scale=0, min_width=100)
@@ -305,6 +320,7 @@ def build_app(runs: list[dict], reports_dir: str = "bench_runs") -> gr.Blocks:
             inject_btn.click(on_inject, inputs=[run_dd, inject_box], outputs=inject_box)
 
         outs = [stats_md, answer_html, hyp_html, tour_html, tl_html]
+        family_dd.change(on_family, inputs=family_dd, outputs=[run_dd, *outs])
         run_dd.change(refresh_all, inputs=run_dd, outputs=outs)
         refresh_btn.click(refresh_all, inputs=run_dd, outputs=outs)
         app.load(refresh_all, inputs=run_dd, outputs=outs)

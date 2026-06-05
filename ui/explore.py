@@ -77,30 +77,83 @@ def load_eval_report(report_path: str) -> dict | None:
         return None
 
 
+# Boilerplate that prefixes every GPQA goal — strip it so the dropdown shows the
+# actual question, not an identical "Research goal: Determine…" for every run.
+_GOAL_BOILER = re.compile(
+    r"^\s*research goal:.*?question:\s*", re.IGNORECASE | re.DOTALL)
+
+
+def goal_excerpt(goal: str, n: int = 64) -> str:
+    """A short, distinguishing slice of a run's goal for the run picker."""
+    t = _GOAL_BOILER.sub("", goal or "").strip()
+    t = re.sub(r"\s+", " ", t)
+    return (t[: n - 1] + "…") if len(t) > n else t
+
+
+# Benchmark family of a run, keyed off its DB filename prefix. Each family is a
+# distinct eval with its own ground-truth shape, so the picker groups by these.
+_FAMILIES = [
+    ("GPQA-bio (concordance)", re.compile(r"^concordance_gpqa", re.IGNORECASE)),
+    ("BiomniBench (rediscovery)", re.compile(r"^rediscover_da", re.IGNORECASE)),
+]
+
+
+def run_family(db_path: str) -> str:
+    """Group label for a run, from its filename (e.g. 'GPQA-bio (concordance)')."""
+    base = os.path.basename(db_path)
+    for name, pat in _FAMILIES:
+        if pat.match(base):
+            return name
+    return "Other"
+
+
 def list_runs(path: str) -> list[dict]:
     """Discover runs. `path` may be a single .db file or a directory of them.
-    Returns [{label, db_path, run_id, goal}] sorted by db mtime (newest first)."""
+    Returns [{label, db_path, run_id, goal, n_hyps}] with populated runs first
+    (then newest-first); each label carries the run tag, hypothesis count, and a
+    distinguishing goal excerpt so every run is identifiable at a glance."""
     if os.path.isdir(path):
         dbs = sorted(glob.glob(os.path.join(path, "*.db")), key=os.path.getmtime, reverse=True)
     else:
         dbs = [path]
     runs: list[dict] = []
-    for db in dbs:
+    for rank, db in enumerate(dbs):  # rank preserves the mtime order as a tiebreak
         try:
             conn = sqlite3.connect(db)
             conn.row_factory = sqlite3.Row
             for r in conn.execute("SELECT run_id, goal FROM configs ORDER BY created_at DESC"):
+                n = conn.execute(
+                    "SELECT COUNT(*) FROM hypotheses WHERE run_id=? AND status='active'",
+                    (r["run_id"],)).fetchone()[0]
                 tag = os.path.splitext(os.path.basename(db))[0]
                 runs.append({
-                    "label": f"{tag}  ·  {(r['goal'] or '')[:60]}",
+                    "label": f"{tag}  ·  {n}h  ·  {goal_excerpt(r['goal'] or '')}",
                     "db_path": db,
                     "run_id": r["run_id"],
                     "goal": r["goal"] or "",
+                    "n_hyps": n,
+                    "family": run_family(db),
+                    "_rank": rank,
                 })
             conn.close()
         except Exception:
             continue
+    # Populated runs first (a fresh visitor never lands on an empty/timed-out run),
+    # then preserve newest-first within each group.
+    runs.sort(key=lambda r: (r["n_hyps"] == 0, r["_rank"]))
+    for r in runs:
+        r.pop("_rank", None)
     return runs
+
+
+def runs_by_family(runs: list[dict]) -> dict[str, list[dict]]:
+    """Group runs into {family: [runs]}, families ordered as declared
+    (known families first, 'Other' last); run order within a family preserved."""
+    order = [name for name, _ in _FAMILIES] + ["Other"]
+    grouped: dict[str, list[dict]] = {}
+    for r in runs:
+        grouped.setdefault(r["family"], []).append(r)
+    return {fam: grouped[fam] for fam in order if fam in grouped}
 
 
 def _conn(db_path: str) -> sqlite3.Connection:
