@@ -5,7 +5,7 @@ class ClaudeClient:
     def __init__(self, model_strong: str, model_fast: str):
         self.model_strong = model_strong
         self.model_fast = model_fast
-        self._client = anthropic.AsyncAnthropic(max_retries=8, timeout=120.0)
+        self._client = anthropic.AsyncAnthropic(max_retries=4, timeout=60.0)
 
     async def call(
         self,
