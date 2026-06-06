@@ -52,17 +52,20 @@ class ClaudeOAuthBackend:
         max_tokens: int = 8192,
     ) -> str:
         model = self.model_strong if use_strong else self.model_fast
+        # First block (Claude Code identity) is required for OAuth. Only append the
+        # caller's system prompt when it's non-empty: the API rejects cache_control
+        # on an empty text block ("cache_control cannot be set for empty text blocks").
+        system = [{"type": "text", "text": _CLAUDE_CODE_IDENTITY}]
+        if system_prompt:
+            system.append({
+                "type": "text",
+                "text": system_prompt,
+                "cache_control": {"type": "ephemeral"},
+            })
         response = await self._client.messages.create(
             model=model,
             max_tokens=max_tokens,
-            system=[
-                {"type": "text", "text": _CLAUDE_CODE_IDENTITY},
-                {
-                    "type": "text",
-                    "text": system_prompt,
-                    "cache_control": {"type": "ephemeral"},
-                },
-            ],
+            system=system,
             messages=[{"role": "user", "content": user_prompt}],
         )
         # Concatenate all text blocks; tolerate an empty content list (a refusal

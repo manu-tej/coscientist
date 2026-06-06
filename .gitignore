@@ -28,7 +28,34 @@ bench/manifest.sqlite
 .env
 .env.*
 !.env.example
+# raw `env` dump — contains tokens/passwords, never commit
+env_dump.txt
 
 # ── Tooling / agent scratch ──
 .superpowers/
 .agents/
+.playwright-mcp/
+
+# ── Session scratch (screenshots, throwaway scripts, ad-hoc test files) ──
+*.png
+explorer-*.png
+polish-*.png
+ui-*.png
+progress.md
+pulled_benchmark_result.md
+victory_audit_output.txt
+auto_run_test*.txt
+pytest_alive.txt
+pytest_orch_output*.txt
+hello.txt
+test_exec.ipynb
+dummy_task/
+orchestrator.py
+write_orch.py
+stat_files.py
+# ad-hoc test files that hit the network / hang under pytest
+tests/test_auto_run.py
+tests/test_auto_run_2.py
+tests/test_dump.py
+tests/test_new_file.py
+tests/test_victory_audit.py

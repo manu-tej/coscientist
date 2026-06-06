@@ -25,6 +25,11 @@ from bench.goalset import BenchGoal
 
 GenerateFn = Callable[[str], Awaitable[str]]
 
+# A minimal, non-empty system prompt: the base-model reference is a plain
+# single-shot answer (no agentic scaffolding), and some backends reject an
+# empty system block, so keep it short and neutral.
+_REFERENCE_SYSTEM = "You are a careful scientific reasoner."
+
 
 async def _sample_texts(
     goal: BenchGoal, generate: GenerateFn, n: int, sem: asyncio.Semaphore,
@@ -85,5 +90,5 @@ def backend_generate(backend, *, use_strong: bool = False) -> GenerateFn:
     sampled single-shot, so blue−red measures the scaffolding, not a tier gap.
     """
     async def generate(prompt: str) -> str:
-        return await backend.call("", prompt, use_strong=use_strong)
+        return await backend.call(_REFERENCE_SYSTEM, prompt, use_strong=use_strong)
     return generate
