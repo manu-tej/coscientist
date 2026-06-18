@@ -1,0 +1,144 @@
+"""Spine tests for the repurposing techbio org layer.
+
+Everything is seeded and synchronous, so these assert exact reproducibility and the
+gate state-machine mechanics without any LLM/network calls.
+"""
+from __future__ import annotations
+
+import pytest
+
+from company import engine, store
+from company.cso import recommend_gate
+from company.ledger import InsufficientCredits, Ledger
+from company.models import GateDecision, ProgramStatus, Stage
+from company.science import (
+    candidate_fixtures,
+    integrate_candidate,
+    realized_pos,
+    run_stage,
+)
+
+
+# --- ledger -----------------------------------------------------------------
+
+def test_ledger_debits_company_and_program():
+    pf = engine.new_company("Helix", "PAH", credit_budget=100.0)
+    p = engine.add_program(pf, "PAH-1", "PAH")
+    Ledger(pf.company).debit(p, credits=30.0, tokens=1000)
+    assert pf.company.credit_spent == 30.0
+    assert p.credits_spent == 30.0
+    assert Ledger(pf.company).credits_remaining == 70.0
+
+
+def test_ledger_hard_wall_on_credits():
+    pf = engine.new_company("Helix", "PAH", credit_budget=10.0)
+    p = engine.add_program(pf, "PAH-1", "PAH")
+    with pytest.raises(InsufficientCredits):
+        Ledger(pf.company).debit(p, credits=11.0)
+    assert pf.company.credit_spent == 0.0  # rejected, nothing charged
+
+
+# --- science: determinism + consensus ---------------------------------------
+
+def test_run_stage_is_reproducible():
+    p1 = engine.add_program(engine.new_company("A", "PAH"), "PAH-1", "pulmonary arterial hypertension", seed=42)
+    p2 = engine.add_program(engine.new_company("B", "PAH"), "PAH-1", "pulmonary arterial hypertension", seed=42)
+    r1, r2 = run_stage(p1, cycle=1), run_stage(p2, cycle=1)
+    assert r1.confidence == r2.confidence
+    assert [e.readout for e in r1.experiments] == [e.readout for e in r2.experiments]
+
+
+def test_run_stage_golden_value_is_process_stable():
+    # Pins cross-process reproducibility: must NOT depend on builtin hash() of strings
+    # (randomized per-process by PYTHONHASHSEED). If this drifts run-to-run, seed
+    # derivation regressed to an unstable hash.
+    p = engine.add_program(engine.new_company("A", "PAH"), "g", "PAH", seed=7)
+    assert run_stage(p, cycle=1).confidence == 0.686
+
+
+def test_consensus_surfaces_sildenafil_for_pah():
+    cands = candidate_fixtures("pulmonary arterial hypertension")
+    ranked = sorted(cands, key=lambda c: integrate_candidate(c)[0], reverse=True)
+    assert ranked[0].drug == "sildenafil"           # the known-correct repurposing
+    assert ranked[-1].drug == "loratadine"          # the negative control sinks
+
+
+def test_hypotheses_stage_sets_lead_candidate():
+    p = engine.add_program(engine.new_company("A", "PAH"), "PAH-1", "pulmonary arterial hypertension")
+    p.stage = Stage.HYPOTHESES
+    run_stage(p, cycle=1)
+    assert p.lead_candidate.startswith("sildenafil")
+
+
+def test_realized_pos_responds_to_science():
+    hi = realized_pos(Stage.MECHANISM, confidence=0.9, red_flags=0)
+    lo = realized_pos(Stage.MECHANISM, confidence=0.9, red_flags=3)
+    assert hi > lo                                   # red flags drag PoS down
+    assert 0.05 <= lo <= hi <= 0.95                  # clamped
+
+
+# --- gate state machine -----------------------------------------------------
+
+def test_kill_decision_terminates_program():
+    pf = engine.new_company("A", "PAH")
+    p = engine.add_program(pf, "PAH-1", "PAH")
+    engine.run_program_stage(pf, p)
+    engine.resolve_gate(pf, p, GateDecision.KILL)
+    assert p.status is ProgramStatus.KILLED
+    assert p.id not in pf.pending
+
+
+def test_hold_keeps_stage_and_clears_pending():
+    pf = engine.new_company("A", "PAH")
+    p = engine.add_program(pf, "PAH-1", "PAH")
+    stage_before = p.stage
+    engine.run_program_stage(pf, p)
+    engine.resolve_gate(pf, p, GateDecision.HOLD)
+    assert p.stage is stage_before
+    assert p.status is ProgramStatus.ACTIVE
+    assert p.id not in pf.pending
+
+
+def test_advance_survival_progresses_stage():
+    pf = engine.new_company("A", "PAH")
+    # high value + strong science → high PoS; find a seed whose roll survives
+    p = engine.add_program(pf, "PAH-1", "pulmonary arterial hypertension", seed=42)
+    p.stage = Stage.HYPOTHESES
+    engine.run_program_stage(pf, p)
+    rec = engine.resolve_gate(pf, p, GateDecision.ADVANCE)
+    if rec.survived_roll:
+        assert p.stage is Stage.MECHANISM
+    else:
+        assert p.status is ProgramStatus.KILLED
+    assert p.cumulative_pos < 1.0                    # PoS always multiplied in
+
+
+def test_full_quarter_loop_is_deterministic_and_charges_credits():
+    def run():
+        pf = engine.new_company("Helix", "pulmonary arterial hypertension", credit_budget=500.0, seed=7)
+        engine.add_program(pf, "PAH-1", "pulmonary arterial hypertension", seed=7)
+        for _ in range(6):
+            engine.run_quarter(pf, auto=True)
+        p = pf.programs[0]
+        return p.status.value, p.stage.value, round(pf.company.credit_spent, 2)
+    assert run() == run()                            # fully reproducible
+    assert run()[2] > 0                              # credits were spent
+
+
+# --- persistence ------------------------------------------------------------
+
+def test_store_roundtrip(tmp_path):
+    path = str(tmp_path / "state.json")
+    pf = engine.new_company("Helix", "PAH", credit_budget=500.0)
+    engine.add_program(pf, "PAH-1", "pulmonary arterial hypertension")
+    engine.run_quarter(pf, auto=False)
+    store.save(pf, path)
+    pf2 = store.load(path)
+    assert pf2.company.name == "Helix"
+    assert pf2.programs[0].name == "PAH-1"
+    assert set(pf2.pending) == set(pf.pending)
+    assert len(pf2.experiments) == len(pf.experiments)
+    # recommend_gate works on the reloaded pending result (enums reconstructed)
+    p = pf2.programs[0]
+    if p.id in pf2.pending:
+        assert recommend_gate(p, pf2.pending[p.id]).decision in GateDecision
