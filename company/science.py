@@ -23,6 +23,7 @@ from company.models import (
     Stage,
     StageResult,
 )
+from company.registry import build_default_registry
 
 # Generation methods that "vote" on a candidate (spec §4). Agreement across these
 # is the repurposing confidence signal.
@@ -113,12 +114,14 @@ def run_experiment(rng: random.Random, *, program_id: str, stage: Stage, assay: 
     )
 
 
-def run_stage(program: Program, cycle: int) -> StageResult:
+def run_stage(program: Program, cycle: int, *, registry=None) -> StageResult:
     """Run one stage for a program (v1 seeded stub). Returns a StageResult.
 
     THE INTEGRATION SEAM: replace the body with a real co-scientist run + Modal
     model calls. The return contract (confidence, agreement, red_flags, candidates,
-    experiments, costs) is what the gate/ledger consume.
+    experiments, costs) is what the gate/ledger consume. Per-method scores are
+    resolved through the model `registry` (defaults to build_default_registry()),
+    which records the fidelity tier that answered each facet.
     """
     stage = program.stage
     rng = random.Random(_seed_for(program, stage, cycle))
@@ -126,13 +129,19 @@ def run_stage(program: Program, cycle: int) -> StageResult:
 
     candidates: list[Candidate] = []
     experiments: list[Experiment] = []
+    provenance: dict[str, int] = {}
 
     if stage is Stage.HYPOTHESES:
-        from company import kg
         cands = candidate_fixtures(program.disease)
-        # LIVE METHOD: replace the synthetic `network` vote with a real KG-on-CPU
-        # network-proximity score (T1) computed per candidate (build-path step 1).
-        kg.annotate_network_scores(cands)
+        # The `network` vote is resolved through the model registry: a real KG-on-CPU
+        # proximity (T1) where it can speak, the fixture estimate (T0) as the floor.
+        reg = registry or build_default_registry()
+        for c in cands:
+            out = reg.resolve("network_proximity", {
+                "drug": c.drug, "indication": c.indication,
+                "fixture_score": c.method_scores.get("network", 0.0)})
+            c.method_scores["network"] = out.value
+            provenance[out.tier.value] = provenance.get(out.tier.value, 0) + 1
         scored = []
         for c in cands:
             conf, agr = integrate_candidate(c)
@@ -175,6 +184,7 @@ def run_stage(program: Program, cycle: int) -> StageResult:
         method_agreement=round(agreement, 3), red_flags=red_flags,
         top_candidates=candidates, experiments=experiments,
         credits_spent=credit_cost, tokens_spent=rng.randint(8000, 30000),
+        method_provenance=provenance,
     )
 
 

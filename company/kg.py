@@ -90,17 +90,3 @@ def proximity_score(drug: str, indication: str) -> float | None:
     except (nx.NetworkXNoPath, nx.NodeNotFound):
         return None
     return round(math.exp(-dist), 4)
-
-
-def annotate_network_scores(candidates: list) -> int:
-    """Overwrite each candidate's `network` method score with the computed KG
-    proximity (real, T1). A candidate the KG can't score abstains (score 0.0, which
-    `integrate_candidate` then ignores). Returns how many got a live, non-None score.
-    """
-    scored = 0
-    for c in candidates:
-        s = proximity_score(c.drug, c.indication)
-        c.method_scores["network"] = s if s is not None else 0.0
-        if s is not None:
-            scored += 1
-    return scored

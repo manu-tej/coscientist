@@ -74,7 +74,10 @@ def _print_packet(pf, p) -> None:
         print("│  top candidates (consensus):")
         for c in result.top_candidates[:5]:
             print(f"│    {c.drug:<16} {c.mean_score:.2f} across {c.n_methods} methods  — {c.rationale}")
-        print("│  method votes: `network` is a live KG-on-CPU proximity (T1); the rest are T0 fixtures")
+        if result.method_provenance:
+            prov = ", ".join(f"{n}×{t}" for t, n in sorted(result.method_provenance.items()))
+            print(f"│  `network` vote fidelity (via model registry): {prov}  "
+                  f"(T1=real KG-on-CPU, T0=estimate)")
     print(f"│  realized PoS this transition: {pos:.2f}   (baseline modulated by science)")
     print(f"│  rNPV contribution: {rnpv_contribution(p):+.0f}")
     print(f"│  experiments: {len(result.experiments)} (all T0 — seeded stub, not real models)")

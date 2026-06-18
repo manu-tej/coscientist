@@ -131,6 +131,7 @@ class StageResult:
     experiments: list[Experiment] = field(default_factory=list)
     credits_spent: float = 0.0
     tokens_spent: int = 0
+    method_provenance: dict[str, int] = field(default_factory=dict)  # fidelity tier -> count
 
 
 @dataclass
