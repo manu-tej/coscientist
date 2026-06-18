@@ -120,6 +120,25 @@ def cmd_quarter(args) -> None:
     print()
 
 
+def cmd_validate(args) -> None:
+    """The company's report card: live literature signal vs the curated gold set."""
+    from company import validation
+    print("\n  Validating against the curated gold set (live PubMed co-occurrence)…")
+    print(f"  {len(validation.GOLD)} diseases, {validation.all_drugs().__len__()} drugs "
+          f"→ {len(validation.gold_pairs())} (drug, disease) pairs. This hits the network.\n")
+    rep = validation.validate()
+    print(f"  scored {rep.n_scored}/{rep.n_pairs} pairs ({rep.n_gold} gold)")
+    print(f"  AUROC (gold vs decoy separation):   {rep.auroc:.3f}")
+    print(f"  mean gold score / mean decoy score: {rep.mean_gold:.3f} / {rep.mean_decoy:.3f}")
+    print(f"  recall@1 / recall@3 (per disease):  {rep.recall_at_1:.2f} / {rep.recall_at_3:.2f}")
+    print(f"  negative-control max decoy score:   {rep.negative_control_max:.3f}")
+    c = rep.concordance
+    print(f"  concordance (confidence↔correct): logistic coef {c.get('logistic_coef', float('nan')):+.2f} "
+          f"(p={c.get('logistic_p', float('nan')):.3f}), top-1 acc {c.get('top1_accuracy', float('nan')):.2f}")
+    print("\n  Read: AUROC→1 and positive logistic coef mean the live signal ranks real")
+    print("  repurposings above decoys — the system's confidence tracks ground truth.\n")
+
+
 def cmd_gate(args) -> None:
     pf = _load(args)
     p = pf.program(args.program)
@@ -162,6 +181,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("status", help="portfolio status").set_defaults(func=cmd_status)
     sub.add_parser("cso", help="CSO proposal").set_defaults(func=cmd_cso)
+    sub.add_parser("validate", help="report card vs the curated gold set (live)").set_defaults(func=cmd_validate)
 
     s = sub.add_parser("quarter", help="advance one simulated quarter")
     s.add_argument("--auto", action="store_true", help="auto-resolve gates via CSO recs")

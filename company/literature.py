@@ -22,9 +22,23 @@ _CAP = 1000          # co-occurrence count at which the score saturates to ~1.0
 _TIMEOUT = 10.0
 
 
+_MIN_INTERVAL = 0.35   # NCBI allows ~3 req/s without a key; pace under that
+_last_call = [0.0]
+
+
+def _throttle() -> None:
+    """Block just enough to stay under NCBI's keyless rate limit (avoids 429 → abstain)."""
+    import time
+    wait = _MIN_INTERVAL - (time.monotonic() - _last_call[0])
+    if wait > 0:
+        time.sleep(wait)
+    _last_call[0] = time.monotonic()
+
+
 def _ncbi_count(term: str, *, api_key: Optional[str] = None) -> int:
     """Hit NCBI E-utilities esearch and read the total hit count (keyless, rate-limited)."""
     import httpx
+    _throttle()
     params = {"db": "pubmed", "term": term, "rettype": "count", "retmode": "json"}
     if api_key:
         params["api_key"] = api_key
