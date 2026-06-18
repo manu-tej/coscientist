@@ -88,15 +88,29 @@ def test_kill_decision_terminates_program():
     assert p.id not in pf.pending
 
 
-def test_hold_keeps_stage_and_clears_pending():
+def test_hold_keeps_stage_and_marks_held():
     pf = engine.new_company("A", "PAH")
     p = engine.add_program(pf, "PAH-1", "PAH")
     stage_before = p.stage
     engine.run_program_stage(pf, p)
     engine.resolve_gate(pf, p, GateDecision.HOLD)
     assert p.stage is stage_before
-    assert p.status is ProgramStatus.ACTIVE
+    assert p.status is ProgramStatus.HELD
     assert p.id not in pf.pending
+
+
+def test_held_program_resumes_and_reruns_same_stage_next_quarter():
+    pf = engine.new_company("A", "PAH")
+    p = engine.add_program(pf, "PAH-1", "pulmonary arterial hypertension")
+    engine.run_program_stage(pf, p)
+    held_stage = p.stage
+    engine.resolve_gate(pf, p, GateDecision.HOLD)
+    assert p.status is ProgramStatus.HELD
+    ran = engine.run_quarter(pf, auto=False)            # held → resumed, re-runs its stage
+    assert [prog.id for prog, _, _ in ran] == [p.id]
+    assert p.status is ProgramStatus.ACTIVE
+    assert p.stage is held_stage                        # same stage, not advanced
+    assert p.id in pf.pending                           # produces a fresh gate
 
 
 def test_advance_survival_progresses_stage():

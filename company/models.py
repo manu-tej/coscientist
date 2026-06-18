@@ -151,10 +151,6 @@ class Program:
     lead_candidate: Optional[str] = None   # "drug -> indication" once known
     history: list[str] = field(default_factory=list)  # human-readable event log
 
-    @property
-    def is_active(self) -> bool:
-        return self.status in (ProgramStatus.ACTIVE, ProgramStatus.HELD)
-
 
 @dataclass
 class Company:

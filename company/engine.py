@@ -42,8 +42,11 @@ class Portfolio:
                 return p
         raise KeyError(f"no program {pid!r}")
 
-    def active_programs(self) -> list[Program]:
-        return [p for p in self.programs if p.status is ProgramStatus.ACTIVE]
+    def runnable_programs(self) -> list[Program]:
+        """Programs that should run a stage this quarter: ACTIVE, plus HELD ones the
+        CEO paused for a de-risking re-run (resumed in run_quarter)."""
+        return [p for p in self.programs
+                if p.status in (ProgramStatus.ACTIVE, ProgramStatus.HELD)]
 
 
 def new_company(name: str, disease: str, *, token_budget: int = 5_000_000,
@@ -109,7 +112,8 @@ def resolve_gate(pf: Portfolio, program: Program, decision: GateDecision) -> Gat
         program.history.append(f"cycle {pf.company.cycle}: GATE killed by CEO")
 
     elif decision is GateDecision.HOLD:
-        record.note = "held — will re-run the stage next quarter"
+        program.status = ProgramStatus.HELD
+        record.note = "held — will re-run the stage next quarter to de-risk"
         program.history.append(f"cycle {pf.company.cycle}: GATE held by CEO")
 
     else:  # ADVANCE — stochastic attrition can still kill it
@@ -144,9 +148,12 @@ def run_quarter(pf: Portfolio, *, auto: bool = False) -> list[tuple[Program, Sta
     """
     pf.company.cycle += 1
     out: list[tuple[Program, StageResult, GateRecommendation]] = []
-    for program in pf.active_programs():
+    for program in pf.runnable_programs():
         if program.id in pf.pending:
             continue  # already awaiting a CEO decision
+        if program.status is ProgramStatus.HELD:
+            program.status = ProgramStatus.ACTIVE  # resume the de-risking re-run
+            program.history.append(f"cycle {pf.company.cycle}: resumed from hold")
         result, rec = run_program_stage(pf, program)
         out.append((program, result, rec))
         if auto:
