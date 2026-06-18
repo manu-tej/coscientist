@@ -128,7 +128,11 @@ def run_stage(program: Program, cycle: int) -> StageResult:
     experiments: list[Experiment] = []
 
     if stage is Stage.HYPOTHESES:
+        from company import kg
         cands = candidate_fixtures(program.disease)
+        # LIVE METHOD: replace the synthetic `network` vote with a real KG-on-CPU
+        # network-proximity score (T1) computed per candidate (build-path step 1).
+        kg.annotate_network_scores(cands)
         scored = []
         for c in cands:
             conf, agr = integrate_candidate(c)
