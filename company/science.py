@@ -114,34 +114,45 @@ def run_experiment(rng: random.Random, *, program_id: str, stage: Stage, assay: 
     )
 
 
-def run_stage(program: Program, cycle: int, *, registry=None) -> StageResult:
+# method key (on a Candidate) -> registry facet that resolves its vote
+_LIVE_FACETS = {"network": "network_proximity", "literature": "literature"}
+
+
+def run_stage(program: Program, cycle: int, *, registry=None,
+              allow_expensive: bool = True) -> StageResult:
     """Run one stage for a program (v1 seeded stub). Returns a StageResult.
 
     THE INTEGRATION SEAM: replace the body with a real co-scientist run + Modal
     model calls. The return contract (confidence, agreement, red_flags, candidates,
     experiments, costs) is what the gate/ledger consume. Per-method scores are
     resolved through the model `registry` (defaults to build_default_registry()),
-    which records the fidelity tier that answered each facet.
+    which records the fidelity tier that answered each facet. `allow_expensive`
+    gates the cost-tiered cascade (GPU providers run only when this program leads).
     """
     stage = program.stage
     rng = random.Random(_seed_for(program, stage, cycle))
     credit_cost = STAGE_CREDIT_COST[stage]
+    reg = registry or build_default_registry()
 
     candidates: list[Candidate] = []
     experiments: list[Experiment] = []
     provenance: dict[str, int] = {}
 
+    def _bump(tier: str) -> None:
+        provenance[tier] = provenance.get(tier, 0) + 1
+
     if stage is Stage.HYPOTHESES:
         cands = candidate_fixtures(program.disease)
-        # The `network` vote is resolved through the model registry: a real KG-on-CPU
-        # proximity (T1) where it can speak, the fixture estimate (T0) as the floor.
-        reg = registry or build_default_registry()
+        # Each live per-method vote is resolved through the registry: a real method
+        # (KG proximity / PubMed co-occurrence, T1) where it can speak, the fixture
+        # estimate (T0) as the floor. Independent methods → real consensus signal.
         for c in cands:
-            out = reg.resolve("network_proximity", {
-                "drug": c.drug, "indication": c.indication,
-                "fixture_score": c.method_scores.get("network", 0.0)})
-            c.method_scores["network"] = out.value
-            provenance[out.tier.value] = provenance.get(out.tier.value, 0) + 1
+            for method_key, facet in _LIVE_FACETS.items():
+                out = reg.resolve(facet, {
+                    "drug": c.drug, "indication": c.indication,
+                    "fixture_score": c.method_scores.get(method_key, 0.0)})
+                c.method_scores[method_key] = out.value
+                _bump(out.tier.value)
         scored = []
         for c in cands:
             conf, agr = integrate_candidate(c)
@@ -171,9 +182,17 @@ def run_stage(program: Program, cycle: int, *, registry=None) -> StageResult:
             Stage.TRANSLATIONAL: ["rwe_signal", "feasibility"],
         }[stage]
         for a in assays:
+            center = confidence
+            # MECHANISM docking_affinity routes through the registry's affinity facet
+            # so the cost-tiered cascade applies: a Modal GPU provider runs only when
+            # this program leads (allow_expensive); else the T0 estimate floor answers.
+            if stage is Stage.MECHANISM and a == "docking_affinity":
+                out = reg.resolve("affinity", {"prior": confidence}, allow_expensive=allow_expensive)
+                center = out.value
+                _bump(out.tier.value)
             experiments.append(run_experiment(
                 rng, program_id=program.id, stage=stage, assay=a, method=a,
-                confidence=confidence, agreement=agreement,
+                confidence=center, agreement=agreement,
                 credits=credit_cost / len(assays),
             ))
         # Mechanism stage can surface liabilities (the realistic risk locus).

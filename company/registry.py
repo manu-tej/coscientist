@@ -119,15 +119,30 @@ def _t0_affinity_stub(inputs: dict) -> float:
     return float(inputs.get("prior", 0.5))
 
 
-def build_default_registry() -> ModelRegistry:
-    """The v1 registry: KG proximity (T1) over a fixture T0 floor for the network
-    vote, plus a priced affinity facet that demonstrates the cost-tiered cascade."""
+def build_default_registry(*, enable_literature: bool = False,
+                           literature_fetch=None) -> ModelRegistry:
+    """The v1 registry. Facets:
+
+    network_proximity — KG-on-CPU (T1) over a fixture T0 floor.
+    literature        — PubMed co-occurrence (T1, network) over a fixture T0 floor,
+                        wired ONLY when enable_literature (keeps default runs offline
+                        and deterministic). `literature_fetch` is the injectable
+                        count fn (for tests); abstains → T0 floor on any failure.
+    affinity          — a (future) Modal GPU provider priced ~25cr to exercise the
+                        cost-tiered cascade; today only the T0 estimate floor answers.
+    """
     reg = ModelRegistry()
-    # network_proximity: real KG first, fixture estimate as the floor.
     reg.register(FnAdapter("kg_cpu", "network_proximity", FidelityTier.T1, _kg_proximity, credits=0.0))
     reg.register(FnAdapter("t0_fixture", "network_proximity", FidelityTier.T0, _fixture_estimate, credits=0.0))
-    # affinity: a (future) Modal GPU provider would sit here priced ~25cr; until then
-    # only the T0 estimate floor answers — but the price tag makes the cascade real.
+
+    if enable_literature:
+        from company import literature
+        reg.register(FnAdapter(
+            "pubmed", "literature", FidelityTier.T1,
+            lambda i: literature.literature_score(i["drug"], i["indication"], fetch=literature_fetch),
+            credits=0.0))
+    reg.register(FnAdapter("t0_literature", "literature", FidelityTier.T0, _fixture_estimate, credits=0.0))
+
     reg.register(FnAdapter("modal_boltz2", "affinity", FidelityTier.T2, lambda i: None, credits=25.0))
     reg.register(FnAdapter("t0_affinity", "affinity", FidelityTier.T0, _t0_affinity_stub, credits=0.0))
     return reg

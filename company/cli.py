@@ -76,8 +76,8 @@ def _print_packet(pf, p) -> None:
             print(f"│    {c.drug:<16} {c.mean_score:.2f} across {c.n_methods} methods  — {c.rationale}")
         if result.method_provenance:
             prov = ", ".join(f"{n}×{t}" for t, n in sorted(result.method_provenance.items()))
-            print(f"│  `network` vote fidelity (via model registry): {prov}  "
-                  f"(T1=real KG-on-CPU, T0=estimate)")
+            print(f"│  method-vote fidelity (via model registry): {prov}  "
+                  f"(T1=real KG/literature, T0=estimate)")
     print(f"│  realized PoS this transition: {pos:.2f}   (baseline modulated by science)")
     print(f"│  rNPV contribution: {rnpv_contribution(p):+.0f}")
     print(f"│  experiments: {len(result.experiments)} (all T0 — seeded stub, not real models)")
@@ -104,7 +104,11 @@ def cmd_cso(args) -> None:
 
 def cmd_quarter(args) -> None:
     pf = _load(args)
-    ran = engine.run_quarter(pf, auto=args.auto)
+    from company.registry import build_default_registry
+    reg = build_default_registry(enable_literature=args.literature)
+    if args.literature:
+        print("  (literature method ENABLED — live PubMed co-occurrence, network-bound/T1)")
+    ran = engine.run_quarter(pf, auto=args.auto, registry=reg)
     store.save(pf, args.state)
     print(f"\n── Quarter {pf.company.cycle} ──  ({len(ran)} program(s) ran their stage"
           f"{', auto-resolved by CSO' if args.auto else ''})")
@@ -161,6 +165,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser("quarter", help="advance one simulated quarter")
     s.add_argument("--auto", action="store_true", help="auto-resolve gates via CSO recs")
+    s.add_argument("--literature", action="store_true",
+                   help="enable the live PubMed co-occurrence method (network; T1)")
     s.set_defaults(func=cmd_quarter)
 
     s = sub.add_parser("gate", help="show a pending gate packet")

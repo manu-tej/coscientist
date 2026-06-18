@@ -61,6 +61,25 @@ def test_provider_exception_does_not_sink_the_cascade():
     assert out.provider == "floor" and out.value == 0.3
 
 
+def test_literature_facet_opt_in_and_offline_fallback():
+    # disabled (default): no live provider → T0 fixture floor answers
+    off = build_default_registry()
+    out = off.resolve("literature", {"drug": "sildenafil", "indication": PAH, "fixture_score": 0.97})
+    assert out.tier is FidelityTier.T0 and out.value == 0.97
+    # enabled with a stub fetch: live T1 co-occurrence answers
+    on = build_default_registry(enable_literature=True, literature_fetch=lambda term: 1000)
+    out = on.resolve("literature", {"drug": "sildenafil", "indication": PAH, "fixture_score": 0.97})
+    assert out.tier is FidelityTier.T1 and out.provider == "pubmed" and out.value == 1.0
+
+
+def test_literature_abstains_to_floor_on_network_failure():
+    def boom(term):
+        raise RuntimeError("offline")
+    reg = build_default_registry(enable_literature=True, literature_fetch=boom)
+    out = reg.resolve("literature", {"drug": "x", "indication": PAH, "fixture_score": 0.2})
+    assert out.tier is FidelityTier.T0 and out.value == 0.2     # graceful fallback
+
+
 def test_consensus_ordering_preserved_through_registry():
     reg = build_default_registry()
     cands = candidate_fixtures(PAH)

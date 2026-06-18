@@ -70,6 +70,41 @@ def test_hypotheses_stage_sets_lead_candidate():
     assert p.lead_candidate.startswith("sildenafil")
 
 
+def test_mechanism_routes_affinity_through_registry():
+    p = engine.add_program(engine.new_company("A", "PAH"), "PAH-1", "pulmonary arterial hypertension")
+    p.stage = Stage.MECHANISM
+    p.confidence = 0.7
+    result = run_stage(p, cycle=1)
+    assert any(e.assay == "docking_affinity" for e in result.experiments)
+    assert result.method_provenance.get("T0", 0) >= 1     # affinity resolved (T0 floor today)
+
+
+def test_leadership_gates_expensive_cascade():
+    from company.registry import FidelityTier, FnAdapter, build_default_registry
+    # a registry whose affinity GPU provider actually returns a value
+    reg = build_default_registry()
+    reg.register(FnAdapter("gpu_live", "affinity", FidelityTier.T2, lambda i: 0.95, credits=25.0))
+    # re-order so the live GPU provider is tried first
+    reg._providers["affinity"].insert(0, reg._providers["affinity"].pop())
+    p = engine.add_program(engine.new_company("A", "PAH"), "PAH-1", "PAH")
+    p.stage = Stage.MECHANISM
+    leader = run_stage(p, cycle=1, registry=reg, allow_expensive=True)
+    trailer = run_stage(p, cycle=1, registry=reg, allow_expensive=False)
+    assert leader.method_provenance.get("T2", 0) == 1     # leader earns the GPU run
+    assert trailer.method_provenance.get("T2", 0) == 0     # trailer screened on T0 only
+
+
+def test_is_leader_ranks_by_rnpv():
+    pf = engine.new_company("A", "PAH")
+    strong = engine.add_program(pf, "STRONG", "PAH", estimated_value=900.0)
+    weak = engine.add_program(pf, "WEAK", "PAH", estimated_value=50.0)
+    assert engine._is_leader(pf, strong) is True
+    assert engine._is_leader(pf, weak) is False
+    solo = engine.new_company("B", "PAH")
+    only = engine.add_program(solo, "ONLY", "PAH")
+    assert engine._is_leader(solo, only) is True           # a lone program always leads
+
+
 def test_realized_pos_responds_to_science():
     hi = realized_pos(Stage.MECHANISM, confidence=0.9, red_flags=0)
     lo = realized_pos(Stage.MECHANISM, confidence=0.9, red_flags=3)

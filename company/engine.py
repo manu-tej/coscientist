@@ -67,10 +67,23 @@ def add_program(pf: Portfolio, name: str, disease: str, *, estimated_value: floa
     return p
 
 
-def run_program_stage(pf: Portfolio, program: Program) -> tuple[StageResult, GateRecommendation]:
+def _is_leader(pf: Portfolio, program: Program) -> bool:
+    """Is this program a portfolio leader (top-half by rNPV)? Leaders earn the
+    expensive GPU cascade; trailing programs are screened with cheap methods only."""
+    runnable = pf.runnable_programs()
+    if len(runnable) <= 1:
+        return True
+    ranked = sorted(runnable, key=rnpv_contribution, reverse=True)
+    cutoff = (len(ranked) + 1) // 2          # top half, rounded up
+    return program in ranked[:cutoff]
+
+
+def run_program_stage(pf: Portfolio, program: Program,
+                      *, registry=None) -> tuple[StageResult, GateRecommendation]:
     """Run the program's current stage once, debit the ledger, stash a pending gate."""
     ledger = Ledger(pf.company)
-    result = run_stage(program, pf.company.cycle)
+    result = run_stage(program, pf.company.cycle, registry=registry,
+                       allow_expensive=_is_leader(pf, program))
     ledger.debit(program, credits=result.credits_spent, tokens=result.tokens_spent)
     program.confidence = result.confidence
     program.red_flags = result.red_flags
@@ -140,11 +153,13 @@ def resolve_gate(pf: Portfolio, program: Program, decision: GateDecision) -> Gat
     return record
 
 
-def run_quarter(pf: Portfolio, *, auto: bool = False) -> list[tuple[Program, StageResult, GateRecommendation]]:
+def run_quarter(pf: Portfolio, *, auto: bool = False,
+                registry=None) -> list[tuple[Program, StageResult, GateRecommendation]]:
     """Advance one simulated quarter: run each active program's current stage.
 
     With auto=True, immediately resolve each gate by the CSO's recommendation (used
     for the reproducible demo + tests). Otherwise leaves pending gates for the CEO.
+    `registry` is the model registry the stage science resolves methods through.
     """
     pf.company.cycle += 1
     out: list[tuple[Program, StageResult, GateRecommendation]] = []
@@ -154,7 +169,7 @@ def run_quarter(pf: Portfolio, *, auto: bool = False) -> list[tuple[Program, Sta
         if program.status is ProgramStatus.HELD:
             program.status = ProgramStatus.ACTIVE  # resume the de-risking re-run
             program.history.append(f"cycle {pf.company.cycle}: resumed from hold")
-        result, rec = run_program_stage(pf, program)
+        result, rec = run_program_stage(pf, program, registry=registry)
         out.append((program, result, rec))
         if auto:
             resolve_gate(pf, program, rec.decision)
