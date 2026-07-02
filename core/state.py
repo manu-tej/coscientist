@@ -1,5 +1,6 @@
 import json
 import aiosqlite
+from contextlib import asynccontextmanager
 from typing import Optional
 from core.models import Hypothesis, Review, TournamentMatch, ResearchPlanConfig
 
@@ -86,15 +87,31 @@ class StateStore:
     def __init__(self, db_path: str):
         self.db_path = db_path
 
-    async def init_db(self) -> None:
+    @asynccontextmanager
+    async def _connect(self):
+        """Open a connection with a busy timeout so a writer waits (up to 5s)
+        for a competing lock instead of failing with 'database is locked'.
+
+        NOTE: PRAGMA foreign_keys stays OFF (SQLite default). The schema's FK
+        constraints are currently unenforced and existing insert orders rely
+        on that; enabling enforcement is future work."""
         async with aiosqlite.connect(self.db_path) as db:
+            await db.execute("PRAGMA busy_timeout=5000")
+            yield db
+
+    async def init_db(self) -> None:
+        async with self._connect() as db:
+            # WAL is persistent in the DB file and lets readers proceed
+            # alongside a writer — the main contention win for concurrent
+            # workers sharing this store.
+            await db.execute("PRAGMA journal_mode=WAL")
             await db.executescript(CREATE_TABLES)
             await db.commit()
 
     # ── Hypothesis ──────────────────────────────────────────────────────────
 
     async def save_hypothesis(self, h: Hypothesis) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             await db.execute(
                 """INSERT OR REPLACE INTO hypotheses
                    (id, run_id, text, summary, category, generation_method,
@@ -107,7 +124,7 @@ class StateStore:
             await db.commit()
 
     async def get_hypothesis(self, hypothesis_id: str) -> Optional[Hypothesis]:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
                 "SELECT * FROM hypotheses WHERE id = ?", (hypothesis_id,)
@@ -126,7 +143,7 @@ class StateStore:
         )
 
     async def list_hypotheses(self, run_id: str, status: str = "active") -> list[Hypothesis]:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
                 "SELECT * FROM hypotheses WHERE run_id = ? AND status = ? ORDER BY elo_rating DESC",
@@ -147,7 +164,7 @@ class StateStore:
         ]
 
     async def update_elo(self, hypothesis_id: str, new_rating: float) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             await db.execute(
                 "UPDATE hypotheses SET elo_rating = ? WHERE id = ?",
                 (new_rating, hypothesis_id),
@@ -159,7 +176,7 @@ class StateStore:
         if h is None:
             return
         h.annotations.append(observation)
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             await db.execute(
                 "UPDATE hypotheses SET annotations = ? WHERE id = ?",
                 (json.dumps(h.annotations), hypothesis_id),
@@ -167,7 +184,7 @@ class StateStore:
             await db.commit()
 
     async def set_hypothesis_status(self, hypothesis_id: str, status: str) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             await db.execute(
                 "UPDATE hypotheses SET status = ? WHERE id = ?",
                 (status, hypothesis_id),
@@ -177,7 +194,7 @@ class StateStore:
     # ── Review ───────────────────────────────────────────────────────────────
 
     async def save_review(self, review: Review) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             await db.execute(
                 """INSERT OR REPLACE INTO reviews
                    (id, hypothesis_id, tier, verdict, critique, web_citations)
@@ -189,7 +206,7 @@ class StateStore:
             await db.commit()
 
     async def list_reviews(self, hypothesis_id: str) -> list[Review]:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
                 "SELECT * FROM reviews WHERE hypothesis_id = ? ORDER BY tier",
@@ -213,7 +230,7 @@ class StateStore:
         succeeds (rowcount 1), concurrent inserts are ignored (rowcount 0).
         This is a lock-free compare-and-swap that prevents two workers from
         running the reflection pipeline on the same hypothesis."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             cursor = await db.execute(
                 "INSERT OR IGNORE INTO review_claims (hypothesis_id) VALUES (?)",
                 (hypothesis_id,),
@@ -221,10 +238,24 @@ class StateStore:
             await db.commit()
             return cursor.rowcount == 1
 
+    async def release_claim(self, hypothesis_id: str) -> None:
+        """Release a reflection claim so the hypothesis can be claimed again.
+
+        Called after the reflection pipeline finishes — success OR failure.
+        On success a tier>=1 review already exists so the scan won't re-pick
+        the hypothesis; on failure this frees it for retry instead of the
+        claim being held forever by a crashed worker."""
+        async with self._connect() as db:
+            await db.execute(
+                "DELETE FROM review_claims WHERE hypothesis_id = ?",
+                (hypothesis_id,),
+            )
+            await db.commit()
+
     # ── Tournament ────────────────────────────────────────────────────────────
 
     async def save_match(self, match: TournamentMatch) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             await db.execute(
                 """INSERT OR REPLACE INTO tournament_matches
                    (id, run_id, h1_id, h2_id, winner_id, match_type,
@@ -248,7 +279,7 @@ class StateStore:
         concurrent matches touching the same hypothesis compose instead of
         the last writer clobbering the other's change. A void match
         (elo_after == elo_before) has delta 0 and leaves ratings untouched."""
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             await db.execute(
                 """INSERT OR REPLACE INTO tournament_matches
                    (id, run_id, h1_id, h2_id, winner_id, match_type,
@@ -271,7 +302,7 @@ class StateStore:
             await db.commit()
 
     async def list_matches(self, run_id: str) -> list[TournamentMatch]:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
                 "SELECT * FROM tournament_matches WHERE run_id = ? ORDER BY created_at",
@@ -295,7 +326,7 @@ class StateStore:
     # ── Proximity graph ───────────────────────────────────────────────────────
 
     async def save_proximity(self, h1_id: str, h2_id: str, score: float) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             await db.execute(
                 """INSERT OR REPLACE INTO proximity_graph (h1_id, h2_id, similarity_score)
                    VALUES (?,?,?)""",
@@ -306,7 +337,7 @@ class StateStore:
     async def get_similar_pairs(
         self, run_id: str, threshold: float = 0.5
     ) -> list[tuple[str, str, float]]:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
                 """SELECT p.h1_id, p.h2_id, p.similarity_score
@@ -332,7 +363,7 @@ class StateStore:
         research_contacts: Optional[str],
         tick: int,
     ) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             await db.execute(
                 """INSERT OR REPLACE INTO meta_reviews
                    (id, run_id, meta_critique, research_overview, research_contacts, tick)
@@ -342,7 +373,7 @@ class StateStore:
             await db.commit()
 
     async def get_latest_meta_review(self, run_id: str) -> Optional[dict]:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
                 """SELECT * FROM meta_reviews WHERE run_id = ?
@@ -357,7 +388,7 @@ class StateStore:
     # ── Config ────────────────────────────────────────────────────────────────
 
     async def save_config(self, config: ResearchPlanConfig) -> None:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             await db.execute(
                 """INSERT OR REPLACE INTO configs
                    (run_id, goal, preferences, attributes, constraints, safety_approved)
@@ -369,7 +400,7 @@ class StateStore:
             await db.commit()
 
     async def get_config(self, run_id: str) -> Optional[ResearchPlanConfig]:
-        async with aiosqlite.connect(self.db_path) as db:
+        async with self._connect() as db:
             db.row_factory = aiosqlite.Row
             async with db.execute(
                 "SELECT * FROM configs WHERE run_id = ?", (run_id,)

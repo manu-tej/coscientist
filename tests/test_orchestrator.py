@@ -216,3 +216,41 @@ async def test_reflection_claim_prevents_double_review(store, config):
     await asyncio.gather(runner.run_task(task), runner.run_task(task))
     # Only ONE should have run the pipeline -> initial_review called exactly once
     assert refl.run_initial_review.call_count == 1
+
+
+async def test_reflection_skips_claimed_and_reviews_next(store, config):
+    """BUG 10a: when the first unreviewed hypothesis is already claimed by
+    another in-flight worker, the reflection task must move on to the NEXT
+    unreviewed hypothesis instead of bailing (reflection starvation)."""
+    runner, gen, refl, *_ = build_runner(store, config)
+    h1 = make_h(elo=1300.0)  # listed first (list_hypotheses orders by elo DESC)
+    h2 = make_h(elo=1200.0)
+    await store.save_hypothesis(h1)
+    await store.save_hypothesis(h2)
+    # Simulate another worker mid-review on h1: claim held, no review yet.
+    assert await store.try_claim_review(h1.id) is True
+    task = AgentTask(priority=1, agent_type=AgentType.REFLECTION, run_id="run1")
+    await runner.run_task(task)
+    # The pipeline ran exactly once — on h2, not h1.
+    refl.run_initial_review.assert_called_once()
+    assert len(await store.list_reviews(h2.id)) >= 1
+    assert await store.list_reviews(h1.id) == []
+
+
+async def test_reflection_releases_claim_when_pipeline_raises(store, config, monkeypatch):
+    """BUG 10b: if the reflection pipeline crashes mid-review, the claim must
+    be released so the hypothesis can be retried — not held forever."""
+    runner, *_ = build_runner(store, config)
+    h = make_h()
+    await store.save_hypothesis(h)
+
+    async def boom(*args, **kwargs):
+        raise RuntimeError("pipeline crashed")
+
+    monkeypatch.setattr("core.orchestrator.run_reflection_pipeline", boom)
+    task = AgentTask(priority=1, agent_type=AgentType.REFLECTION, run_id="run1",
+                     hypothesis_id=h.id)
+    with pytest.raises(RuntimeError):
+        await runner.run_task(task)
+    # Claim was released -> a retry can claim the hypothesis again.
+    assert await store.try_claim_review(h.id) is True

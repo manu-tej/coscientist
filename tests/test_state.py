@@ -169,3 +169,35 @@ async def test_try_claim_review_distinct_hypotheses(store):
     b = await store.try_claim_review("hb")
     assert a is True
     assert b is True
+
+
+async def test_release_claim_allows_reclaim(store):
+    """BUG 10b: claims must be releasable, or a crashed reflection worker
+    holds the claim forever and the hypothesis starves."""
+    assert await store.try_claim_review("hc") is True
+    assert await store.try_claim_review("hc") is False
+    await store.release_claim("hc")
+    assert await store.try_claim_review("hc") is True
+
+
+async def test_release_claim_on_unclaimed_hypothesis_is_noop(store):
+    await store.release_claim("never-claimed")
+    assert await store.try_claim_review("never-claimed") is True
+
+
+async def test_init_db_enables_wal(store):
+    """BUG 11: init_db must switch the DB file to WAL journal mode so
+    concurrent readers/writers don't hit 'database is locked'."""
+    async with aiosqlite.connect(store.db_path) as db:
+        async with db.execute("PRAGMA journal_mode") as cursor:
+            row = await cursor.fetchone()
+    assert row[0].lower() == "wal"
+
+
+async def test_connect_helper_sets_busy_timeout(store):
+    """BUG 11: connections opened via the store wait (busy_timeout) for a
+    lock instead of failing immediately."""
+    async with store._connect() as db:
+        async with db.execute("PRAGMA busy_timeout") as cursor:
+            row = await cursor.fetchone()
+    assert row[0] == 5000

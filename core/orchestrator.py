@@ -75,27 +75,38 @@ class AgentRunner:
         await self.store.save_hypothesis(h)
 
     async def _run_reflection(self, task: AgentTask) -> None:
-        hypothesis = None
+        candidates = []
         if task.hypothesis_id:
-            hypothesis = await self.store.get_hypothesis(task.hypothesis_id)
-        if hypothesis is None:
+            h = await self.store.get_hypothesis(task.hypothesis_id)
+            if h is not None:
+                candidates = [h]
+        if not candidates:
             for h in await self.store.list_hypotheses(self.config.run_id):
                 reviews = await self.store.list_reviews(h.id)
                 if not any(r.tier >= 1 for r in reviews):
-                    hypothesis = h
-                    break
-        if hypothesis is None:
+                    candidates.append(h)
+        for hypothesis in candidates:
+            # Atomically claim this hypothesis so a concurrent worker doesn't
+            # run the reflection pipeline on it at the same time. If another
+            # in-flight worker holds the claim, try the next candidate
+            # instead of bailing (otherwise one held claim starves all
+            # reflection).
+            claimed = await self.store.try_claim_review(hypothesis.id)
+            if not claimed:
+                continue
+            # Hold the claim during the review to block double-review, and
+            # always release it afterwards: on success a tier>=1 review now
+            # exists so the scan won't re-pick this hypothesis; on a crash
+            # the claim is freed for retry instead of being held forever.
+            try:
+                meta_critique = await self._current_meta_critique()
+                await run_reflection_pipeline(
+                    hypothesis, self.config, self.reflection, self.search, self.store,
+                    meta_critique=meta_critique,
+                )
+            finally:
+                await self.store.release_claim(hypothesis.id)
             return
-        # Atomically claim this hypothesis so a concurrent worker doesn't
-        # run the reflection pipeline on it at the same time.
-        claimed = await self.store.try_claim_review(hypothesis.id)
-        if not claimed:
-            return
-        meta_critique = await self._current_meta_critique()
-        await run_reflection_pipeline(
-            hypothesis, self.config, self.reflection, self.search, self.store,
-            meta_critique=meta_critique,
-        )
 
     async def _review_text(self, hypothesis_id: str) -> str:
         reviews = await self.store.list_reviews(hypothesis_id)
