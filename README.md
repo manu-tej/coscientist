@@ -17,15 +17,11 @@ It is inspired by the Google AI co-scientist paper (`arXiv:2502.18864`) but is n
 
 Coding agents helped implement and iterate on the scaffold, tests, benchmark runners, and documentation. I own the architecture choices, evaluation framing, and any public claims made from the repo.
 
-## Current Status
+## Status
 
-Private research prototype. Not public-ready yet.
-
-Known publication gates:
-
-- `poc/` is ignored by default. Promote only reviewed files from it if they are part
-  of the public scope.
-- Re-run tests and record the current command/result.
+Public research prototype — an experimental system for studying agentic scientific
+reasoning and evaluation, not a production tool. Hypotheses and rankings it produces
+need human review.
 
 ## Setup
 
