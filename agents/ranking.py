@@ -13,8 +13,12 @@ from core.tournament import compute_elo_update
 logger = logging.getLogger(__name__)
 
 
-def _parse_winner(text: str, h1_id: str, h2_id: str) -> str:
-    """Parse the winner from Claude's response text."""
+def _parse_winner(text: str, h1_id: str, h2_id: str) -> Optional[str]:
+    """Parse the winner from Claude's response text.
+
+    Returns None if no winner can be parsed; callers must treat such a
+    match as void (no Elo update, no persistence).
+    """
     text_lower = text.lower()
     for pattern in [r"better (?:hypothesis|idea):\s*1", r"better idea:\s*1"]:
         if re.search(pattern, text_lower):
@@ -23,10 +27,11 @@ def _parse_winner(text: str, h1_id: str, h2_id: str) -> str:
         if re.search(pattern, text_lower):
             return h2_id
     logger.warning(
-        "Could not parse winner from ranking response; defaulting to h1. Response snippet: %s",
+        "Could not parse winner from ranking response; treating match as void. "
+        "Response snippet: %s",
         text[-200:],
     )
-    return h1_id  # default to h1 if parsing fails
+    return None
 
 
 class RankingAgent:
@@ -69,14 +74,18 @@ class RankingAgent:
             "You are an expert evaluator.", prompt
         )
         winner_id = _parse_winner(response, h1.id, h2.id)
-        winner = "a" if winner_id == h1.id else "b"
         old_r1, old_r2 = h1.elo_rating, h2.elo_rating
-        new_r1, new_r2 = compute_elo_update(old_r1, old_r2, winner, self.elo_k)
-        if self.store:
-            await self.store.update_elo(h1.id, new_r1)
-            await self.store.update_elo(h2.id, new_r2)
-        h1.elo_rating = new_r1
-        h2.elo_rating = new_r2
+        if winner_id is None:
+            # Void match: no Elo update, no persistence.
+            new_r1, new_r2 = old_r1, old_r2
+        else:
+            winner = "a" if winner_id == h1.id else "b"
+            new_r1, new_r2 = compute_elo_update(old_r1, old_r2, winner, self.elo_k)
+            if self.store:
+                await self.store.update_elo(h1.id, new_r1)
+                await self.store.update_elo(h2.id, new_r2)
+            h1.elo_rating = new_r1
+            h2.elo_rating = new_r2
         return TournamentMatch(
             id=str(uuid.uuid4()),
             run_id=config.run_id,
@@ -118,14 +127,18 @@ class RankingAgent:
             use_strong=True,
         )
         winner_id = _parse_winner(final_text, h1.id, h2.id)
-        winner = "a" if winner_id == h1.id else "b"
         old_r1, old_r2 = h1.elo_rating, h2.elo_rating
-        new_r1, new_r2 = compute_elo_update(old_r1, old_r2, winner, self.elo_k)
-        if self.store:
-            await self.store.update_elo(h1.id, new_r1)
-            await self.store.update_elo(h2.id, new_r2)
-        h1.elo_rating = new_r1
-        h2.elo_rating = new_r2
+        if winner_id is None:
+            # Void match: no Elo update, no persistence.
+            new_r1, new_r2 = old_r1, old_r2
+        else:
+            winner = "a" if winner_id == h1.id else "b"
+            new_r1, new_r2 = compute_elo_update(old_r1, old_r2, winner, self.elo_k)
+            if self.store:
+                await self.store.update_elo(h1.id, new_r1)
+                await self.store.update_elo(h2.id, new_r2)
+            h1.elo_rating = new_r1
+            h2.elo_rating = new_r2
         return TournamentMatch(
             id=str(uuid.uuid4()),
             run_id=config.run_id,

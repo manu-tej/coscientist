@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS tournament_matches (
     run_id TEXT NOT NULL,
     h1_id TEXT NOT NULL,
     h2_id TEXT NOT NULL,
-    winner_id TEXT NOT NULL,
+    winner_id TEXT,
     match_type TEXT NOT NULL,
     debate_transcript TEXT,
     elo_before_h1 REAL,

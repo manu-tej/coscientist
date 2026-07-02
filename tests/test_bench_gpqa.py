@@ -31,6 +31,16 @@ def test_parse_mcq_answer_variants():
     assert parse_mcq_answer("no letter here") is None
 
 
+def test_parse_mcq_answer_prefers_conclusion_over_incidental_option():
+    # An explicit "correct answer is X" must beat an incidental "option (X)".
+    assert parse_mcq_answer(
+        "Option (A) is wrong; the correct answer is (D)"
+    ) == "D"
+    assert parse_mcq_answer("The answer is B.") == "B"
+    assert parse_mcq_answer("(C)") == "C"
+    assert parse_mcq_answer("There is no verdict in this reasoning.") is None
+
+
 def test_score_answer_binary():
     assert score_answer("Answer: B", "B") is True
     assert score_answer("Answer: A", "B") is False

@@ -100,5 +100,52 @@ async def test_elo_persisted_when_store_provided(config, mock_base, tmp_path):
 def test_parse_winner_logs_warning_on_failure(caplog):
     with caplog.at_level(logging.WARNING, logger="agents.ranking"):
         result = _parse_winner("completely unrecognized output", "h1", "h2")
-    assert result == "h1"
-    assert "defaulting to h1" in caplog.text
+    assert result is None
+    assert "Could not parse winner" in caplog.text
+
+
+def test_parse_winner_returns_none_on_unparseable_text():
+    assert _parse_winner("these are both interesting", "h1", "h2") is None
+
+
+async def test_unparseable_single_turn_match_is_void(config, mock_base):
+    mock_base.call_claude = AsyncMock(return_value="these are both interesting")
+    agent = RankingAgent(base=mock_base)
+    h1 = make_h("h1", 1200.0)
+    h2 = make_h("h2", 1200.0)
+    match = await agent.run_single_turn_match(h1, h2, config, review_1="r1", review_2="r2")
+    assert match.winner_id is None
+    assert h1.elo_rating == 1200.0
+    assert h2.elo_rating == 1200.0
+    assert match.elo_after_h1 == 1200.0
+    assert match.elo_after_h2 == 1200.0
+
+
+async def test_unparseable_multi_turn_match_is_void(config, mock_base):
+    mock_base.run_turn_loop = AsyncMock(return_value=("no clear verdict here", ["turn1"]))
+    agent = RankingAgent(base=mock_base)
+    h1 = make_h("h1", 1400.0)
+    h2 = make_h("h2", 1400.0)
+    match = await agent.run_multi_turn_match(h1, h2, config, review_1="r1", review_2="r2")
+    assert match.winner_id is None
+    assert h1.elo_rating == 1400.0
+    assert h2.elo_rating == 1400.0
+
+
+async def test_unparseable_match_not_persisted_to_store(config, mock_base, tmp_path):
+    from core.state import StateStore
+
+    store = StateStore(str(tmp_path / "test.db"))
+    await store.init_db()
+
+    mock_base.call_claude = AsyncMock(return_value="these are both interesting")
+    h1 = make_h("h1", 1200.0)
+    h2 = make_h("h2", 1200.0)
+    await store.save_hypothesis(h1)
+    await store.save_hypothesis(h2)
+
+    agent = RankingAgent(base=mock_base, store=store)
+    await agent.run_single_turn_match(h1, h2, config, "r1", "r2")
+
+    assert (await store.get_hypothesis("h1")).elo_rating == 1200.0
+    assert (await store.get_hypothesis("h2")).elo_rating == 1200.0

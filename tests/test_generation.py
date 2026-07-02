@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 from agents.generation import GenerationAgent
 from agents.base import BaseAgent
 from core.models import ResearchPlanConfig, GenerationStrategy
+from tools.llm import LLMBackendError
 
 
 @pytest.fixture
@@ -72,3 +73,46 @@ async def test_assumptions_strategy_returns_hypothesis(agent, config):
     h = await agent.run_assumptions(config)
     assert h.generation_method == "assumptions"
     assert h.run_id == "run1"
+
+
+def _base_with_response(response_text: str) -> BaseAgent:
+    """Real BaseAgent (real run_turn_loop) with a stubbed backend response."""
+    client = MagicMock()
+    base = BaseAgent(client=client, prompts_dir=Path(__file__).parent.parent / "prompts")
+    base.call_claude = AsyncMock(return_value=response_text)
+    return base
+
+
+async def test_debate_raises_when_never_terminates(config):
+    # Backend never emits the HYPOTHESIS marker -> loop exhausts all turns.
+    base = _base_with_response("Still debating, no conclusion reached yet.")
+    agent = GenerationAgent(base=base)
+    with pytest.raises(LLMBackendError):
+        await agent.run_debate(config, reviews_overview="No prior meta-review")
+
+
+async def test_debate_returns_hypothesis_when_terminates(config):
+    base = _base_with_response(
+        "HYPOTHESIS\nSummary: PTM hypothesis\nCategory: Neurodegeneration"
+    )
+    agent = GenerationAgent(base=base)
+    h = await agent.run_debate(config, reviews_overview="No prior meta-review")
+    assert h.generation_method == "debate"
+    assert "HYPOTHESIS" in h.text
+
+
+async def test_assumptions_raises_when_never_terminates(config):
+    base = _base_with_response("Listing assumptions, still going, no marker yet.")
+    agent = GenerationAgent(base=base)
+    with pytest.raises(LLMBackendError):
+        await agent.run_assumptions(config)
+
+
+async def test_assumptions_returns_hypothesis_when_terminates(config):
+    base = _base_with_response(
+        "HYPOTHESIS\nSummary: PTM hypothesis\nCategory: Neurodegeneration"
+    )
+    agent = GenerationAgent(base=base)
+    h = await agent.run_assumptions(config)
+    assert h.generation_method == "assumptions"
+    assert "HYPOTHESIS" in h.text

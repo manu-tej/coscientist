@@ -70,6 +70,20 @@ def test_hypotheses_stage_sets_lead_candidate():
     assert p.lead_candidate.startswith("sildenafil")
 
 
+def test_hypotheses_stage_with_no_candidates_does_not_crash():
+    # Any disease other than PAH yields zero fixtures in v1. The HYPOTHESES stage
+    # must emit a well-formed low-confidence result rather than raising IndexError,
+    # which would otherwise crash the whole quarter/portfolio run.
+    p = engine.add_program(engine.new_company("A", "PAH"), "AD-1", "alzheimer disease")
+    p.stage = Stage.HYPOTHESES
+    result = run_stage(p, cycle=1)
+    assert result.stage == Stage.HYPOTHESES.value
+    assert result.confidence == 0.0
+    assert result.method_agreement == 0.0
+    assert result.top_candidates == []
+    assert p.lead_candidate is None
+
+
 def test_mechanism_routes_affinity_through_registry():
     p = engine.add_program(engine.new_company("A", "PAH"), "PAH-1", "pulmonary arterial hypertension")
     p.stage = Stage.MECHANISM

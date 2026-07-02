@@ -160,9 +160,14 @@ def run_stage(program: Program, cycle: int, *, registry=None,
         scored.sort(key=lambda t: t[0], reverse=True)
         top = scored[:5]
         candidates = [c for _, _, c in top]
-        # The program's confidence is led by its best consensus candidate.
-        confidence, agreement, lead = top[0]
-        program.lead_candidate = f"{lead.drug} -> {lead.indication}"
+        # The program's confidence is led by its best consensus candidate. With no
+        # candidates (only PAH has fixtures in v1) emit a low-confidence result so the
+        # program simply doesn't advance instead of crashing the whole run.
+        if top:
+            confidence, agreement, lead = top[0]
+            program.lead_candidate = f"{lead.drug} -> {lead.indication}"
+        else:
+            confidence, agreement = 0.0, 0.0
         for conf, agr, c in top:
             experiments.append(run_experiment(
                 rng, program_id=program.id, stage=stage, assay="consensus_screen",

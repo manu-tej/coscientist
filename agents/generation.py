@@ -5,6 +5,7 @@ import uuid
 
 from agents.base import BaseAgent
 from core.models import Hypothesis, ResearchPlanConfig
+from tools.llm import LLMBackendError
 
 
 def _extract_field(text: str, field: str, default: str = "") -> str:
@@ -93,6 +94,11 @@ class GenerationAgent:
             system_prompt="You are an expert scientific researcher.",
         )
         final_text = transcript[-1] if transcript else ""
+        if "HYPOTHESIS" not in final_text:
+            raise LLMBackendError(
+                "debate turn loop exhausted without reaching the HYPOTHESIS "
+                "termination signal; refusing to store an unfinished hypothesis."
+            )
         return _parse_hypothesis_output(final_text, config, "debate")
 
     # ------------------------------------------------------------------
@@ -118,6 +124,11 @@ class GenerationAgent:
             system_prompt="You are an expert scientific researcher.",
         )
         final_text = transcript[-1] if transcript else ""
+        if "HYPOTHESIS" not in final_text:
+            raise LLMBackendError(
+                "assumptions turn loop exhausted without reaching the HYPOTHESIS "
+                "termination signal; refusing to store an unfinished hypothesis."
+            )
         return _parse_hypothesis_output(final_text, config, "assumptions")
 
     # ------------------------------------------------------------------

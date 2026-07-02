@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from pathlib import Path
-from agents.reflection import ReflectionAgent
+from agents.reflection import ReflectionAgent, _parse_verdict, _extract_observation
 from agents.base import BaseAgent
 from core.models import Hypothesis, ResearchPlanConfig, Review
 
@@ -100,3 +100,35 @@ async def test_tournament_review_tier_6(agent, hypothesis, config):
         tournament_history="match history"
     )
     assert review.tier == 6
+
+
+# --- BUG A: _parse_verdict must fail SAFE, not open ---
+
+def test_parse_verdict_unparseable_does_not_pass():
+    # Formatting drift with no clean "verdict: <token>" must NOT silently pass.
+    text = "The reviewer had concerns but the format is garbled here."
+    assert _parse_verdict(text) != "passed"
+    assert _parse_verdict(text) == "flagged"
+
+
+def test_parse_verdict_bracketed_rejected():
+    assert _parse_verdict("Verdict: [REJECTED]") == "rejected"
+
+
+def test_parse_verdict_markdown_rejected():
+    assert _parse_verdict("**Verdict:** rejected") == "rejected"
+
+
+def test_parse_verdict_plain_passed_still_passes():
+    assert _parse_verdict("Verdict: PASSED\nReason: solid.") == "passed"
+
+
+# --- BUG B: _extract_observation must not treat negations as observations ---
+
+def test_extract_observation_ignores_negation():
+    assert _extract_observation("This is not a missing piece.") is None
+
+
+def test_extract_observation_returns_affirmative_line():
+    text = "Analysis follows.\nThe missing piece is X\nDone."
+    assert _extract_observation(text) == "The missing piece is X"

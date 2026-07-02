@@ -66,7 +66,7 @@ class TournamentMatch:
     run_id: str
     h1_id: str
     h2_id: str
-    winner_id: str
+    winner_id: Optional[str]             # None = void/unparseable match (no Elo change)
     match_type: str                      # "single_turn" | "multi_turn"
     debate_transcript: Optional[str] = None
     elo_before_h1: float = 0.0

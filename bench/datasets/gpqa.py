@@ -99,21 +99,28 @@ def load_gpqa_hf(all_subjects: bool = False, limit: Optional[int] = None) -> lis
     return goals
 
 
+# Ordered most-specific-first: an explicit "correct answer is X" must win over
+# an incidental "option (X)" mention (models often eliminate options before
+# concluding).
 _ANSWER_PATTERNS = [
-    r"answer\s*[:\-]?\s*\(?([a-f])\)?\b",
+    r"correct (?:choice|option|answer)\s*(?:is|[:=\-])?\s*\(?([a-f])\)?\b",
+    r"answer\s*(?:is|[:=\-])?\s*\(?([a-f])\)?\b",
     r"option\s*\(?([a-f])\)?\b",
-    r"correct (?:choice|option|answer) is\s*\(?([a-f])\)?\b",
     r"^\s*\(?([a-f])\)?\s*$",
 ]
 
 
 def parse_mcq_answer(text: str) -> Optional[str]:
-    """Extract the chosen option letter from a hypothesis's text."""
+    """Extract the chosen option letter from a hypothesis's text.
+
+    Patterns are tried most-specific-first; within a matching pattern the LAST
+    occurrence wins, since the final conclusion follows any option elimination.
+    """
     low = text.lower()
     for pat in _ANSWER_PATTERNS:
-        m = re.search(pat, low, re.MULTILINE)
-        if m:
-            return m.group(1).upper()
+        matches = list(re.finditer(pat, low, re.MULTILINE))
+        if matches:
+            return matches[-1].group(1).upper()
     return None
 
 

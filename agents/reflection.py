@@ -1,30 +1,44 @@
 from __future__ import annotations
 
+import logging
+import re
 import uuid
 from typing import Optional
 
 from agents.base import BaseAgent
 from core.models import Hypothesis, ResearchPlanConfig, Review
 
+logger = logging.getLogger(__name__)
+
+# Tolerate punctuation drift around the value, e.g. "Verdict: [REJECTED]",
+# "**Verdict:** rejected". Case-insensitive.
+_VERDICT_RE = re.compile(r"verdict:\s*\W{0,3}(rejected|flagged|passed)\b", re.IGNORECASE)
+
 
 def _parse_verdict(text: str) -> str:
-    text_lower = text.lower()
-    if "verdict: rejected" in text_lower:
-        return "rejected"
-    if "verdict: flagged" in text_lower:
-        return "flagged"
-    if "verdict: passed" in text_lower:
-        return "passed"
-    return "passed"
+    match = _VERDICT_RE.search(text)
+    if match:
+        return match.group(1).lower()
+    # Fail SAFE, not open: an unparseable review must NOT silently pass.
+    logger.warning("Could not parse verdict from review; defaulting to 'flagged'.")
+    return "flagged"
 
 
 def _extract_observation(text: str) -> Optional[str]:
-    """Return the line containing 'missing piece' if present, else None."""
+    """Return the line affirmatively indicating a 'missing piece', else None.
+
+    Excludes negations such as "not a missing piece" so non-novel cases
+    (per the prompt) are not misread as positive observations.
+    """
     if "missing piece" in text.lower():
         lines = text.strip().split("\n")
         for line in lines:
-            if "missing piece" in line.lower():
-                return line.strip()
+            line_lower = line.lower()
+            if "missing piece" not in line_lower:
+                continue
+            if re.search(r"not\s+a?\s*missing piece", line_lower):
+                continue
+            return line.strip()
     return None
 
 
