@@ -72,8 +72,32 @@ async def test_selects_single_turn_for_low_elo(agent, config):
     assert match.match_type == "single_turn"
 
 
+async def test_ranking_agent_never_calls_update_elo(config, mock_base):
+    """BUG 8: the agent computes new ratings but must NOT persist them —
+    persistence happens exactly once, in StateStore.save_match_and_elos."""
+    store = MagicMock()
+    store.update_elo = AsyncMock()
+    agent = RankingAgent(base=mock_base, store=store)
+
+    h1 = make_h("h1", 1200.0)
+    h2 = make_h("h2", 1200.0)
+    match = await agent.run_single_turn_match(h1, h2, config, "r1", "r2")
+    store.update_elo.assert_not_called()
+    # In-memory computation still happens and is recorded on the match.
+    assert match.elo_after_h1 > match.elo_before_h1
+    assert h1.elo_rating == match.elo_after_h1
+
+    h3 = make_h("h3", 1400.0)
+    h4 = make_h("h4", 1400.0)
+    await agent.run_multi_turn_match(h3, h4, config, "r1", "r2")
+    store.update_elo.assert_not_called()
+
+
 @pytest.mark.asyncio
-async def test_elo_persisted_when_store_provided(config, mock_base, tmp_path):
+async def test_elo_persisted_exactly_once_via_save_match_and_elos(config, mock_base, tmp_path):
+    """BUG 8: after run_match the store is untouched; save_match_and_elos then
+    applies the Elo change exactly once (not the double write of agent
+    update_elo + save_match_and_elos)."""
     from core.state import StateStore
 
     store = StateStore(str(tmp_path / "test.db"))
@@ -91,10 +115,17 @@ async def test_elo_persisted_when_store_provided(config, mock_base, tmp_path):
     await store.save_hypothesis(h2)
 
     agent_with_store = RankingAgent(base=mock_base, store=store)
-    await agent_with_store.run_single_turn_match(h1, h2, config, "r1", "r2")
+    match = await agent_with_store.run_single_turn_match(h1, h2, config, "r1", "r2")
 
-    updated_h1 = await store.get_hypothesis("h1")
-    assert updated_h1.elo_rating != 1200.0
+    # Agent must not have persisted anything yet.
+    assert (await store.get_hypothesis("h1")).elo_rating == 1200.0
+    assert (await store.get_hypothesis("h2")).elo_rating == 1200.0
+
+    await store.save_match_and_elos(match)
+
+    # Exactly one application of the delta (1200 + delta == elo_after).
+    assert (await store.get_hypothesis("h1")).elo_rating == pytest.approx(match.elo_after_h1)
+    assert (await store.get_hypothesis("h2")).elo_rating == pytest.approx(match.elo_after_h2)
 
 
 def test_parse_winner_logs_warning_on_failure(caplog):

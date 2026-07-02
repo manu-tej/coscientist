@@ -135,6 +135,43 @@ async def test_ranking_task_saves_match_and_updates_elo(store, config):
     assert len(matches) == 1
 
 
+async def test_ranking_task_persists_elo_exactly_once(store, config):
+    """BUG 8 integration: a ranking task with a REAL RankingAgent persists Elo
+    exactly once, via save_match_and_elos — the agent never calls
+    store.update_elo, and the stored rating reflects a single delta."""
+    from pathlib import Path
+    from agents.base import BaseAgent
+    from agents.ranking import RankingAgent
+
+    base = BaseAgent(client=MagicMock(), prompts_dir=Path(__file__).parent.parent / "prompts")
+    base.call_claude = AsyncMock(return_value="better hypothesis: 1")
+    real_ranking = RankingAgent(base=base, store=store)
+
+    await store.save_hypothesis(make_h())
+    await store.save_hypothesis(make_h())
+
+    update_elo_spy = AsyncMock()
+    store.update_elo = update_elo_spy
+
+    runner, *_ = build_runner(store, config, ranking=real_ranking)
+    task = AgentTask(priority=1, agent_type=AgentType.RANKING, run_id="run1",
+                     extra={"n_pairs": 1})
+    await runner.run_task(task)
+
+    update_elo_spy.assert_not_called()
+    matches = await store.list_matches("run1")
+    assert len(matches) == 1
+    m = matches[0]
+    # Both started at 1200; a single application of the delta means the
+    # stored ratings equal elo_after exactly (a double write with delta
+    # semantics would give 1200 + 2*delta).
+    assert (await store.get_hypothesis(m.h1_id)).elo_rating == pytest.approx(m.elo_after_h1)
+    assert (await store.get_hypothesis(m.h2_id)).elo_rating == pytest.approx(m.elo_after_h2)
+    assert m.winner_id == m.h1_id
+    assert m.elo_after_h1 == pytest.approx(1216.0)
+    assert m.elo_after_h2 == pytest.approx(1184.0)
+
+
 async def test_evolution_task_creates_new_hypothesis(store, config):
     runner, gen, refl, ranking, proximity, evolution, meta = build_runner(store, config)
     h = make_h(elo=1400.0)

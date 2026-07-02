@@ -98,6 +98,61 @@ async def test_save_match_and_elos_atomic(store):
     assert hb.elo_rating == 1184.0
 
 
+async def test_save_match_and_elos_applies_delta_not_absolute(store):
+    """BUG 7: elo_after_* was computed from a snapshot at ranking-task start.
+    If a concurrent match already moved a rating, the write must apply the
+    DELTA (after - before) so both matches' changes compose — not overwrite
+    with the stale absolute elo_after (lost update)."""
+    from core.models import Hypothesis, TournamentMatch
+    h1 = Hypothesis(id="ha", run_id="run1", text="t", summary="s",
+                    generation_method="debate", source="system")
+    h2 = Hypothesis(id="hb", run_id="run1", text="t", summary="s",
+                    generation_method="debate", source="system")
+    await store.save_hypothesis(h1)
+    await store.save_hypothesis(h2)
+    # Simulate a concurrent match that moved the ratings AFTER this match
+    # snapshotted elo_before = 1200.
+    await store.update_elo("ha", 1250.0)
+    await store.update_elo("hb", 1180.0)
+    match = TournamentMatch(
+        id="m1", run_id="run1", h1_id="ha", h2_id="hb",
+        winner_id="ha", match_type="single_turn",
+        elo_before_h1=1200.0, elo_before_h2=1200.0,
+        elo_after_h1=1216.0, elo_after_h2=1184.0,
+    )
+    await store.save_match_and_elos(match)
+    ha = await store.get_hypothesis("ha")
+    hb = await store.get_hypothesis("hb")
+    # current + (after - before), NOT the stale absolute elo_after
+    assert ha.elo_rating == pytest.approx(1250.0 + 16.0)
+    assert hb.elo_rating == pytest.approx(1180.0 - 16.0)
+    assert ha.elo_rating != 1216.0
+    assert hb.elo_rating != 1184.0
+
+
+async def test_save_match_and_elos_void_match_leaves_ratings_unchanged(store):
+    """A void match (winner None, elo_after == elo_before) has delta 0 and
+    must not move ratings, even ones that changed since the snapshot."""
+    from core.models import Hypothesis, TournamentMatch
+    h1 = Hypothesis(id="ha", run_id="run1", text="t", summary="s",
+                    generation_method="debate", source="system")
+    h2 = Hypothesis(id="hb", run_id="run1", text="t", summary="s",
+                    generation_method="debate", source="system")
+    await store.save_hypothesis(h1)
+    await store.save_hypothesis(h2)
+    await store.update_elo("ha", 1250.0)
+    match = TournamentMatch(
+        id="m1", run_id="run1", h1_id="ha", h2_id="hb",
+        winner_id=None, match_type="single_turn",
+        elo_before_h1=1200.0, elo_before_h2=1200.0,
+        elo_after_h1=1200.0, elo_after_h2=1200.0,
+    )
+    await store.save_match_and_elos(match)
+    assert (await store.get_hypothesis("ha")).elo_rating == 1250.0
+    assert (await store.get_hypothesis("hb")).elo_rating == 1200.0
+    assert len(await store.list_matches("run1")) == 1
+
+
 async def test_try_claim_review_first_wins(store):
     from core.models import Hypothesis
     h = Hypothesis(id="hc", run_id="run1", text="t", summary="s",

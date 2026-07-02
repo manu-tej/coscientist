@@ -42,7 +42,9 @@ class Supervisor:
         self.runner = runner
         self.settings = settings
         self.store = store
-        self.task_queue: asyncio.Queue = asyncio.Queue()
+        # Bounded to the worker count so dispatch backpressures on the workers:
+        # stats then update between dispatches and adaptive weighting can adapt.
+        self.task_queue: asyncio.Queue = asyncio.Queue(maxsize=settings.n_workers)
         self._tasks_dispatched = 0
         self._tasks_completed = 0
         self._tick = 0
@@ -123,7 +125,18 @@ class Supervisor:
                     "Checkpoint: %d dispatched, %d completed",
                     self._tasks_dispatched, self._tasks_completed,
                 )
-        await self.task_queue.join()
+        remaining = self.settings.max_time_seconds - (time.monotonic() - self._start_time)
+        try:
+            await asyncio.wait_for(self.task_queue.join(), timeout=max(remaining, 0))
+        except asyncio.TimeoutError:
+            logger.warning(
+                "Time budget exceeded with %d tasks unfinished; cancelling workers",
+                self._tasks_dispatched - self._tasks_completed,
+            )
+            for worker in workers:
+                worker.cancel()
+            await asyncio.gather(*workers, return_exceptions=True)
+            return
         for _ in workers:
             await self.task_queue.put(None)
         await asyncio.gather(*workers)

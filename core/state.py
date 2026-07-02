@@ -241,7 +241,13 @@ class StateStore:
     async def save_match_and_elos(self, match: TournamentMatch) -> None:
         """Atomically persist a tournament match and update both hypotheses' Elo
         ratings in a single transaction, so a mid-write failure cannot leave one
-        hypothesis updated and the other not."""
+        hypothesis updated and the other not.
+
+        Ratings are updated by applying the match's DELTA (elo_after -
+        elo_before) rather than writing the absolute elo_after, so two
+        concurrent matches touching the same hypothesis compose instead of
+        the last writer clobbering the other's change. A void match
+        (elo_after == elo_before) has delta 0 and leaves ratings untouched."""
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
                 """INSERT OR REPLACE INTO tournament_matches
@@ -255,12 +261,12 @@ class StateStore:
                  match.elo_after_h1, match.elo_after_h2),
             )
             await db.execute(
-                "UPDATE hypotheses SET elo_rating = ? WHERE id = ?",
-                (match.elo_after_h1, match.h1_id),
+                "UPDATE hypotheses SET elo_rating = elo_rating + ? WHERE id = ?",
+                (match.elo_after_h1 - match.elo_before_h1, match.h1_id),
             )
             await db.execute(
-                "UPDATE hypotheses SET elo_rating = ? WHERE id = ?",
-                (match.elo_after_h2, match.h2_id),
+                "UPDATE hypotheses SET elo_rating = elo_rating + ? WHERE id = ?",
+                (match.elo_after_h2 - match.elo_before_h2, match.h2_id),
             )
             await db.commit()
 

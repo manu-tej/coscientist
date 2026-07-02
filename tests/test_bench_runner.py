@@ -26,12 +26,14 @@ async def test_read_run_builds_bench_hypotheses(tmp_path: Path):
     cfg = ResearchPlanConfig(run_id="r", goal="g", preferences="p",
                              attributes=["Novelty"], constraints="c", safety_approved=True)
     await store.save_config(cfg)
+    # Seed at the match's elo_before; save_match_and_elos applies the delta
+    # (elo_after - elo_before) so ratings land at 1216/1184.
     await store.save_hypothesis(Hypothesis(id="a", run_id="r", text="Answer: B",
                                 summary="s-a", generation_method="debate", source="system",
-                                elo_rating=1216.0))
+                                elo_rating=1200.0))
     await store.save_hypothesis(Hypothesis(id="b", run_id="r", text="Answer: C",
                                 summary="s-b", generation_method="debate", source="system",
-                                elo_rating=1184.0))
+                                elo_rating=1200.0))
     await store.save_match_and_elos(TournamentMatch(
         id="m1", run_id="r", h1_id="a", h2_id="b", winner_id="a",
         match_type="single_turn", elo_before_h1=1200.0, elo_before_h2=1200.0,

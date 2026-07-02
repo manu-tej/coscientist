@@ -35,7 +35,12 @@ def _parse_winner(text: str, h1_id: str, h2_id: str) -> Optional[str]:
 
 
 class RankingAgent:
-    """Ranks hypotheses via single-turn comparison or multi-turn debate."""
+    """Ranks hypotheses via single-turn comparison or multi-turn debate.
+
+    Computes new Elo ratings in memory and records them on the returned
+    TournamentMatch, but never writes them to the store: persistence happens
+    exactly once, atomically, in StateStore.save_match_and_elos. (`store` is
+    kept for constructor compatibility; the agent does not write to it.)"""
 
     def __init__(
         self,
@@ -76,14 +81,11 @@ class RankingAgent:
         winner_id = _parse_winner(response, h1.id, h2.id)
         old_r1, old_r2 = h1.elo_rating, h2.elo_rating
         if winner_id is None:
-            # Void match: no Elo update, no persistence.
+            # Void match: no Elo update (elo_after == elo_before).
             new_r1, new_r2 = old_r1, old_r2
         else:
             winner = "a" if winner_id == h1.id else "b"
             new_r1, new_r2 = compute_elo_update(old_r1, old_r2, winner, self.elo_k)
-            if self.store:
-                await self.store.update_elo(h1.id, new_r1)
-                await self.store.update_elo(h2.id, new_r2)
             h1.elo_rating = new_r1
             h2.elo_rating = new_r2
         return TournamentMatch(
@@ -129,14 +131,11 @@ class RankingAgent:
         winner_id = _parse_winner(final_text, h1.id, h2.id)
         old_r1, old_r2 = h1.elo_rating, h2.elo_rating
         if winner_id is None:
-            # Void match: no Elo update, no persistence.
+            # Void match: no Elo update (elo_after == elo_before).
             new_r1, new_r2 = old_r1, old_r2
         else:
             winner = "a" if winner_id == h1.id else "b"
             new_r1, new_r2 = compute_elo_update(old_r1, old_r2, winner, self.elo_k)
-            if self.store:
-                await self.store.update_elo(h1.id, new_r1)
-                await self.store.update_elo(h2.id, new_r2)
             h1.elo_rating = new_r1
             h2.elo_rating = new_r2
         return TournamentMatch(
