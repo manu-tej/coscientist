@@ -1,6 +1,6 @@
 # Publication Readiness
 
-Status: private GitHub repo, not public-ready yet. Do not make public until the user explicitly does so after review.
+Status: public repo (released 2026-07-02).
 
 ## What I Did
 
