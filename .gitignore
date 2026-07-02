@@ -35,6 +35,7 @@ env_dump.txt
 .superpowers/
 .agents/
 .playwright-mcp/
+poc/
 
 # ── Session scratch (screenshots, throwaway scripts, ad-hoc test files) ──
 *.png

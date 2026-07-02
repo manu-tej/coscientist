@@ -99,6 +99,9 @@ class AgentRunner:
             # exists so the scan won't re-pick this hypothesis; on a crash
             # the claim is freed for retry instead of being held forever.
             try:
+                reviews = await self.store.list_reviews(hypothesis.id)
+                if any(r.tier >= 1 for r in reviews):
+                    continue
                 meta_critique = await self._current_meta_critique()
                 await run_reflection_pipeline(
                     hypothesis, self.config, self.reflection, self.search, self.store,
