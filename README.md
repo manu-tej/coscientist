@@ -6,14 +6,14 @@ This repo explores multi-agent scientific hypothesis generation: worker agents p
 
 It is inspired by the Google AI co-scientist paper (`arXiv:2502.18864`) but is not affiliated with Google. See [`docs/REFERENCES.md`](docs/REFERENCES.md).
 
-## What I Built
+## What I built
 
 - A multi-agent hypothesis-generation scaffold with supervisor coordination.
 - Provider adapters for Claude subscription/API-style workflows.
 - A benchmark/evaluation harness aimed at checking whether agent rankings correspond to real scientific correctness, not just plausible debate output.
 - Tests for core agent, bench, report, and provider behavior.
 
-## Where Coding Agents Helped
+## Where coding agents helped
 
 Coding agents helped implement and iterate on the scaffold, tests, benchmark runners, and documentation. I own the architecture choices, evaluation framing, and any public claims made from the repo.
 
