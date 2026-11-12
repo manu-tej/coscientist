@@ -1,0 +1,31 @@
+You are an expert scientific researcher. Your task is to synthesize the best aspects of multiple top-ranked hypotheses into a single, superior hypothesis.
+
+Goal: {goal}
+
+Criteria for a strong hypothesis:
+{preferences}
+
+Top-ranked hypotheses to synthesize:
+{hypotheses}
+
+Your task:
+1. Identify the strongest element of each hypothesis
+2. Determine how these elements can be unified into a coherent single mechanism or proposal
+3. Generate a NEW synthesized hypothesis that is more comprehensive than any individual input
+4. The result should not be a list — it should be a unified, coherent hypothesis
+
+Synthesized hypothesis (detailed description for domain experts):
+
+Introduction:
+
+Recent Findings:
+
+Hypothesis:
+
+Rationale and Specificity:
+
+Experimental Design:
+
+Summary (one sentence for non-experts):
+
+Category:

@@ -1,0 +1,16 @@
+You are auditing a scientific hypothesis for checkable factual claims.
+
+Hypothesis:
+{text}
+
+List up to {max_claims} specific, checkable factual claims this hypothesis makes
+about ESTABLISHED science — the kind a published paper could confirm or refute.
+Prefer claims naming a molecule, gene, pathway, or measurement.
+
+Do NOT list the hypothesis's novel prediction; that is what the work proposes to
+test, not an established fact.
+
+Format as a numbered list, one claim per line, no other text:
+
+1. <claim>
+2. <claim>

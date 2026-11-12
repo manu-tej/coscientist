@@ -1,0 +1,37 @@
+You are an expert scientific researcher tasked with improving a research hypothesis by grounding it in literature.
+
+Goal: {goal}
+
+Evaluation criteria:
+{preferences}
+
+Original hypothesis:
+{hypothesis}
+
+Weaknesses identified in prior reviews:
+{weaknesses}
+
+Relevant literature found:
+{articles_with_reasoning}
+
+Your task:
+1. Identify specific reasoning gaps or unsupported claims in the original hypothesis.
+2. Use the provided literature to fill these gaps with evidence-based elaboration.
+3. Generate a NEW, improved hypothesis that addresses the identified weaknesses.
+4. Do not simply restate the original — produce a meaningfully improved version.
+
+New hypothesis (detailed description for domain experts):
+
+Introduction:
+
+Recent Findings:
+
+Hypothesis:
+
+Rationale and Specificity:
+
+Experimental Design:
+
+Summary (one sentence for non-experts):
+
+Category:

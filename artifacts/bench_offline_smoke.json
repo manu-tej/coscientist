@@ -1,0 +1,194 @@
+{
+  "cells": [
+    {
+      "agent_failures": [],
+      "agent_task_counts": {
+        "generation": 8
+      },
+      "backend": "_DeterministicBackend",
+      "backend_calls_overlapped": false,
+      "checks": {
+        "agent_failures_absent": true,
+        "backend_accounting_reconciled": true,
+        "configured_workers_recorded": true,
+        "expected_call_overlap": true,
+        "gold_pool_recall_complete": true,
+        "gold_top1_recall_complete": true,
+        "hypotheses_present": true,
+        "one_hypothesis_per_task": true,
+        "one_model_call_per_task": true,
+        "sqlite_provenance_present": true,
+        "task_budget_completed": true
+      },
+      "completed_tasks": 8,
+      "configured_task_budget": 8,
+      "hypotheses_present": true,
+      "max_backend_concurrency": 1,
+      "models": {
+        "fast": "offline-deterministic-v1",
+        "strong": "offline-deterministic-v1"
+      },
+      "n_hypotheses": 8,
+      "n_llm_calls": 8,
+      "provenance": {
+        "database_existed_during_validation": true,
+        "database_file": "workers-1.db",
+        "goal_id": "da-1-3",
+        "run_id_present": true,
+        "variant": "offline_runtime_smoke"
+      },
+      "rediscovery": {
+        "gold_entities": 8,
+        "hypotheses_scored": 8,
+        "pool_recall": 1.0,
+        "top1_recall": 1.0,
+        "top3_recall": 1.0
+      },
+      "workers": 1
+    },
+    {
+      "agent_failures": [],
+      "agent_task_counts": {
+        "generation": 8
+      },
+      "backend": "_DeterministicBackend",
+      "backend_calls_overlapped": true,
+      "checks": {
+        "agent_failures_absent": true,
+        "backend_accounting_reconciled": true,
+        "configured_workers_recorded": true,
+        "expected_call_overlap": true,
+        "gold_pool_recall_complete": true,
+        "gold_top1_recall_complete": true,
+        "hypotheses_present": true,
+        "one_hypothesis_per_task": true,
+        "one_model_call_per_task": true,
+        "sqlite_provenance_present": true,
+        "task_budget_completed": true
+      },
+      "completed_tasks": 8,
+      "configured_task_budget": 8,
+      "hypotheses_present": true,
+      "max_backend_concurrency": 2,
+      "models": {
+        "fast": "offline-deterministic-v1",
+        "strong": "offline-deterministic-v1"
+      },
+      "n_hypotheses": 8,
+      "n_llm_calls": 8,
+      "provenance": {
+        "database_existed_during_validation": true,
+        "database_file": "workers-2.db",
+        "goal_id": "da-1-3",
+        "run_id_present": true,
+        "variant": "offline_runtime_smoke"
+      },
+      "rediscovery": {
+        "gold_entities": 8,
+        "hypotheses_scored": 8,
+        "pool_recall": 1.0,
+        "top1_recall": 1.0,
+        "top3_recall": 1.0
+      },
+      "workers": 2
+    },
+    {
+      "agent_failures": [],
+      "agent_task_counts": {
+        "generation": 8
+      },
+      "backend": "_DeterministicBackend",
+      "backend_calls_overlapped": true,
+      "checks": {
+        "agent_failures_absent": true,
+        "backend_accounting_reconciled": true,
+        "configured_workers_recorded": true,
+        "expected_call_overlap": true,
+        "gold_pool_recall_complete": true,
+        "gold_top1_recall_complete": true,
+        "hypotheses_present": true,
+        "one_hypothesis_per_task": true,
+        "one_model_call_per_task": true,
+        "sqlite_provenance_present": true,
+        "task_budget_completed": true
+      },
+      "completed_tasks": 8,
+      "configured_task_budget": 8,
+      "hypotheses_present": true,
+      "max_backend_concurrency": 4,
+      "models": {
+        "fast": "offline-deterministic-v1",
+        "strong": "offline-deterministic-v1"
+      },
+      "n_hypotheses": 8,
+      "n_llm_calls": 8,
+      "provenance": {
+        "database_existed_during_validation": true,
+        "database_file": "workers-4.db",
+        "goal_id": "da-1-3",
+        "run_id_present": true,
+        "variant": "offline_runtime_smoke"
+      },
+      "rediscovery": {
+        "gold_entities": 8,
+        "hypotheses_scored": 8,
+        "pool_recall": 1.0,
+        "top1_recall": 1.0,
+        "top3_recall": 1.0
+      },
+      "workers": 4
+    }
+  ],
+  "checks": {
+    "all_cells_failure_free": true,
+    "all_cells_have_hypotheses": true,
+    "all_cells_have_sqlite_provenance": true,
+    "all_cells_rediscovered_gold": true,
+    "all_worker_cells_completed": true,
+    "multi_worker_calls_overlapped": true,
+    "network_guard_was_enabled": true,
+    "single_worker_calls_did_not_overlap": true
+  },
+  "configuration": {
+    "backend": "_DeterministicBackend",
+    "max_tasks_per_cell": 8,
+    "model": "offline-deterministic-v1",
+    "network_enabled": false,
+    "scheduler_workload": "generation-only",
+    "seed": 0,
+    "workers": [
+      1,
+      2,
+      4
+    ]
+  },
+  "label": "STRUCTURAL_OFFLINE_BENCHMARK_SMOKE",
+  "provenance": {
+    "dataset": {
+      "goal_id": "da-1-3",
+      "gold_entities": [
+        "SPP1",
+        "FAP",
+        "COL4A1",
+        "LAYN",
+        "macrophage",
+        "fibroblast",
+        "endothelial",
+        "exhausted"
+      ],
+      "path": "bench/datasets/biomnibench_goldset.jsonl",
+      "sha256": "d92494f1393d64a93ae75c6d948258e6b2e11fb3693ac019e44c1af76f1daa3b"
+    },
+    "runtime": {
+      "runner": "bench.runner.run_system",
+      "runner_sha256": "4d6911a0851de815a404fc2aae110debd268e2fff01c9136bc9b818ede689c7c",
+      "scorer": "bench.orchestrate.rediscovery_from_runs",
+      "scorer_sha256": "64d4022abce4792651a9d677ed15b494a342fdd2d82027bfceb3a9e578afd9cd",
+      "state_store": "core.state.StateStore (SQLite)"
+    }
+  },
+  "schema_version": 1,
+  "scientific_quality_benchmark": false,
+  "scope": "Deterministic runtime, persistence, scoring, and generation-call concurrency smoke; not a measure of six-role scaling or LLM scientific quality.",
+  "status": "passed"
+}

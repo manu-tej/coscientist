@@ -1,0 +1,10 @@
+{"id": "cb-1", "goal": "Propose the molecular mechanism by which the PI3K-Akt pathway promotes cell survival, naming key effectors.", "gold_entities": ["PI3K-Akt", "mTOR", "BAD", "FOXO", "caspase-9"]}
+{"id": "cb-2", "goal": "Identify regulatory mechanisms linking p53 to apoptosis under DNA damage.", "gold_entities": ["p53", "PUMA", "BAX", "MDM2", "ATM"]}
+{"id": "cb-3", "goal": "Explain how the unfolded protein response signals through IRE1 to alter transcription.", "gold_entities": ["IRE1", "XBP1", "BiP", "PERK", "ATF6"]}
+{"id": "cb-4", "goal": "Propose pathways linking chronic inflammation to insulin resistance in adipose tissue.", "gold_entities": ["TNF-α", "IKK-β", "JNK", "IRS-1", "NF-κB"]}
+{"id": "cb-5", "goal": "Describe the mechanism by which TGF-β drives epithelial-mesenchymal transition.", "gold_entities": ["TGF-β", "SMAD", "SNAIL", "E-cadherin", "ZEB1"]}
+{"id": "cb-6", "goal": "Identify the core regulators of the circadian clock feedback loop in mammals.", "gold_entities": ["CLOCK", "BMAL1", "PER", "CRY", "REV-ERBα"]}
+{"id": "cb-7", "goal": "Explain how Wnt signaling stabilizes β-catenin to drive target-gene expression.", "gold_entities": ["Wnt", "β-catenin", "GSK-3β", "APC", "TCF"]}
+{"id": "cb-8", "goal": "Propose the mechanism by which hypoxia stabilizes HIF-1α and reprograms metabolism.", "gold_entities": ["HIF-1α", "VHL", "prolyl hydroxylase", "VEGF", "GLUT1"]}
+{"id": "cb-9", "goal": "Describe how the cGAS-STING pathway detects cytosolic DNA and triggers interferon.", "gold_entities": ["cGAS", "STING", "TBK1", "IRF3", "interferon"]}
+{"id": "cb-10", "goal": "Identify the mechanism by which mTORC1 integrates nutrient signals to control growth.", "gold_entities": ["mTORC1", "Rheb", "TSC1-TSC2", "RagGTPase", "S6K1"]}

@@ -1,0 +1,117 @@
+import logging
+import pytest
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
+from agents.ranking import RankingAgent, _parse_winner
+from agents.base import AgentOutputError, BaseAgent
+from core.models import Hypothesis, ResearchPlanConfig
+
+
+@pytest.fixture
+def config():
+    return ResearchPlanConfig(
+        run_id="run1", goal="ALS", preferences="Novel",
+        attributes=["Novelty"], constraints="testable", safety_approved=True,
+    )
+
+
+def make_h(id_, elo):
+    return Hypothesis(
+        id=id_, run_id="run1", text=f"text {id_}", summary=f"summary {id_}",
+        generation_method="debate", source="system", elo_rating=elo,
+    )
+
+
+@pytest.fixture
+def mock_base():
+    client = MagicMock()
+    base = BaseAgent(client=client, prompts_dir=Path(__file__).parent.parent / "prompts")
+    base.call_claude = AsyncMock(return_value="better hypothesis: 1")
+    base.run_turn_loop = AsyncMock(return_value=(
+        "The debate concludes. better idea: 1",
+        ["turn1", "better idea: 1"],
+    ))
+    return base
+
+
+@pytest.fixture
+def agent(mock_base):
+    return RankingAgent(base=mock_base, elo_k=32.0, multi_turn_threshold=1350.0)
+
+
+async def test_single_turn_match_h1_wins(agent, config):
+    h1 = make_h("h1", 1200.0)
+    h2 = make_h("h2", 1200.0)
+    match = await agent.run_single_turn_match(h1, h2, config, review_1="ok", review_2="ok")
+    assert match.winner_id == "h1"
+    assert match.elo_after_h1 > 1200.0
+    assert match.elo_after_h2 < 1200.0
+    assert match.match_type == "single_turn"
+    agent.base.call_claude.assert_awaited_once()
+    assert agent.base.call_claude.await_args.kwargs["use_strong"] is True
+
+
+async def test_multi_turn_match_h1_wins(agent, config):
+    h1 = make_h("h1", 1400.0)
+    h2 = make_h("h2", 1400.0)
+    match = await agent.run_multi_turn_match(h1, h2, config, review_1="ok", review_2="ok")
+    assert match.winner_id == "h1"
+    assert match.match_type == "multi_turn"
+    assert match.debate_transcript is not None
+
+
+async def test_selects_multi_turn_for_high_elo(agent, config):
+    h1 = make_h("h1", 1400.0)
+    h2 = make_h("h2", 1400.0)
+    match = await agent.run_match(h1, h2, config, review_1="r1", review_2="r2")
+    assert match.match_type == "multi_turn"
+
+
+async def test_selects_single_turn_for_low_elo(agent, config):
+    h1 = make_h("h1", 1200.0)
+    h2 = make_h("h2", 1200.0)
+    match = await agent.run_match(h1, h2, config, review_1="r1", review_2="r2")
+    assert match.match_type == "single_turn"
+
+
+@pytest.mark.asyncio
+async def test_elo_persisted_when_store_provided(config, mock_base, tmp_path):
+    from core.state import StateStore
+
+    store = StateStore(str(tmp_path / "test.db"))
+    await store.init_db()
+
+    h1 = Hypothesis(
+        id="h1", run_id="run1", text="text h1", summary="s1",
+        generation_method="debate", source="system", elo_rating=1200.0,
+    )
+    h2 = Hypothesis(
+        id="h2", run_id="run1", text="text h2", summary="s2",
+        generation_method="debate", source="system", elo_rating=1200.0,
+    )
+    await store.save_hypothesis(h1)
+    await store.save_hypothesis(h2)
+
+    agent_with_store = RankingAgent(base=mock_base, store=store)
+    await agent_with_store.run_single_turn_match(h1, h2, config, "r1", "r2")
+
+    updated_h1 = await store.get_hypothesis("h1")
+    assert updated_h1.elo_rating != 1200.0
+
+
+def test_parse_winner_fails_closed_on_unrecognized_output(caplog):
+    with caplog.at_level(logging.WARNING, logger="agents.ranking"):
+        with pytest.raises(AgentOutputError):
+            _parse_winner("completely unrecognized output", "h1", "h2")
+    assert "could not parse" in caplog.text.lower()
+
+
+def test_parse_winner_accepts_json_and_natural_language():
+    assert _parse_winner('{"winner": 2}', "h1", "h2") == "h2"
+    assert _parse_winner("After review, hypothesis 2 is stronger.", "h1", "h2") == "h2"
+
+
+def test_parse_winner_accepts_markdown_decorated_output():
+    from agents.ranking import _parse_winner
+    assert _parse_winner("**better hypothesis:** 2", "a", "b") == "b"
+    assert _parse_winner("better hypothesis: **1**", "a", "b") == "a"

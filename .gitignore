@@ -1,0 +1,71 @@
+# ad-hoc test files that hit the network / hang under pytest
+# raw `env` dump — contains tokens/passwords, never commit
+# ── Generated run artifacts (system + eval harness) ──
+# ── OS junk ──
+# ── Python bytecode / caches ──
+# ── Secrets ──
+# ── Session scratch (screenshots, throwaway scripts, ad-hoc test files) ──
+# ── Tooling / agent scratch ──
+# ── Virtual envs ──
+*$py.class
+*.db
+*.log
+*.png
+*.py[cod]
+*.sqlite
+.DS_Store
+.DS_Store?
+.agents/
+.cache/
+.claude/
+.env
+.env.*
+# Must follow .env.* — gitignore takes the LAST matching pattern, so a negation
+# placed above it has no effect and the template stops shipping on a fresh init.
+!.env.example
+.mypy_cache/
+.playwright-mcp/
+.pytest_cache/
+.ruff_cache/
+.superpowers/
+.venv/
+/orchestrator.py
+Thumbs.db
+__pycache__/
+artifacts/bench_offline_smoke_runs/
+artifacts/hierarchy_offline_smoke_runs/
+artifacts/restart-*/
+artifacts/workspace-logs/
+auto_run_test*.txt
+bench/manifest.sqlite
+bench_runs
+# SQLite WAL/SHM sidecars are not matched by *.db
+*.db-wal
+*.db-shm
+coscientist.log
+dummy_task/
+env/
+env_dump.txt
+explorer-*.png
+hello.txt
+orchestrator.py
+poc/
+polish-*.png
+progress.md
+pulled_benchmark_result.md
+pytest_alive.txt
+pytest_orch_output*.txt
+stat_files.py
+test_exec.ipynb
+tests/test_auto_run.py
+tests/test_auto_run_2.py
+tests/test_dump.py
+tests/test_new_file.py
+tests/test_victory_audit.py
+ui-*.png
+venv/
+victory_audit_output.txt
+write_orch.py
+
+# Third-party paper — cite via docs/REFERENCES.md, do not redistribute
+google_co_scientist_2502.18864.pdf

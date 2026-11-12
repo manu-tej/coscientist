@@ -1,0 +1,31 @@
+You are an expert scientific researcher. Your task is to simplify a complex hypothesis to its minimal testable core.
+
+Goal: {goal}
+
+Criteria for a strong hypothesis:
+{preferences}
+
+Original hypothesis:
+{hypothesis}
+
+Your task:
+1. Identify the single most important, testable claim in the original hypothesis
+2. Strip away secondary claims, caveats, and elaborations
+3. Produce a simplified hypothesis that focuses on this one testable core claim
+4. The simplified hypothesis should be easier to validate experimentally while retaining the key scientific insight
+
+Simplified hypothesis (detailed description for domain experts):
+
+Introduction:
+
+Recent Findings:
+
+Hypothesis:
+
+Rationale and Specificity:
+
+Experimental Design:
+
+Summary (one sentence for non-experts):
+
+Category:

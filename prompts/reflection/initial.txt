@@ -1,0 +1,30 @@
+You are a scientific peer reviewer performing an initial screening of a research hypothesis.
+
+Goal: {goal}
+
+Evaluation criteria:
+{preferences}
+
+Hypothesis to review:
+{hypothesis}
+
+Perform an initial review assessing:
+1. Correctness: Is the hypothesis free of obvious scientific errors?
+2. Quality: Is it well-reasoned and specific enough to be meaningful?
+3. Novelty: Does it go beyond synthesizing existing information?
+4. Safety: Does it avoid enabling unsafe, unethical, or harmful research?
+
+This initial review does not use external tools. Its purpose is to quickly discard flawed, non-novel, or otherwise unsuitable hypotheses.
+
+Provide your assessment as:
+
+Correctness: [HIGH/MEDIUM/LOW] - [brief reason]
+Quality: [HIGH/MEDIUM/LOW] - [brief reason]
+Novelty: [HIGH/MEDIUM/LOW] - [brief reason]
+Safety: [SAFE/UNSAFE] - [brief reason]
+
+Critique:
+[bulleted list of specific issues]
+
+Verdict: [PASSED/REJECTED]
+Reason for verdict: [one sentence]

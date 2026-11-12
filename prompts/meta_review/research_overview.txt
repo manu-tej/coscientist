@@ -1,0 +1,22 @@
+You are an expert scientific researcher. Your task is to synthesize the top-ranked hypotheses in a research area into a comprehensive research overview that maps the current hypothesis landscape and identifies future directions.
+
+Goal: {goal}
+
+Top-ranked hypotheses (ordered by Elo rating):
+{top_hypotheses}
+
+Generate a research overview with the following structure:
+
+[Main Research Directions]
+For each major direction identified across the hypotheses:
+
+Direction: [name and brief description]
+Rationale: [why this direction is important and promising]
+Recent Findings: [what the current hypotheses have established in this area]
+Areas of Research:
+  Sub-area: [name]
+    Why Research? [scientific motivation]
+    What to Research? [specific open questions]
+    Example Idea: [a concrete hypothesis or experiment]
+
+The overview should highlight both well-covered areas and notable gaps.

@@ -1,0 +1,66 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "coscientist"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=0.40.0",
+    "aiosqlite>=0.20.0",
+    "sentence-transformers>=3.0.0",
+    "tavily-python>=0.3.0",
+    "gradio>=5.0.0",
+    "markdown-it-py>=3.0.0",
+    "pyyaml>=6.0",
+    "numpy>=1.26.0",
+    "networkx>=3.2.0",
+    "scikit-learn>=1.4.0",
+    "httpx>=0.27.0",
+    "scipy>=1.13.0",
+    "statsmodels>=0.14.0",
+    "krippendorff>=0.6.0",
+    "datasets>=2.19.0",
+    "pandas>=2.2.0",
+    "claude-agent-sdk>=0.2.0",
+    "python-dotenv>=1.0.0",
+    "defusedxml>=0.7.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-mock>=3.12.0",
+    "pytest-timeout>=2.3.0",
+]
+gpu = [
+    "modal>=1.5.0",
+]
+
+[project.scripts]
+coscientist = "coscientist:cli"
+coscientist-company = "company.cli:main"
+coscientist-bench = "bench.cli:main"
+coscientist-bench-smoke = "bench.offline_smoke:main"
+coscientist-hierarchy-smoke = "company.offline_smoke:main"
+coscientist-ui = "ui.launch:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["core", "agents", "tools", "bench", "company", "qc", "ui"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"coscientist.py" = "coscientist.py"
+"modal_app.py" = "modal_app.py"
+"config.yaml" = "config.yaml"
+"prompts" = "prompts"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+# A wedged test must fail the run, not stall CI forever. Generous enough for the
+# slowest integration test (~15s) with a wide margin.
+timeout = 120
+markers = ["network: hits a real external API; excluded from the default run"]
+addopts = "-m 'not network'"

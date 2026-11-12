@@ -1,0 +1,3 @@
+{"id": "gpqa-bio-1", "subject": "Biology", "question": "Which enzyme unwinds DNA at the replication fork?", "choices": ["DNA polymerase", "Helicase", "Ligase", "Primase"], "answer": "B"}
+{"id": "gpqa-chem-1", "subject": "Chemistry", "question": "What is the conjugate base of water?", "choices": ["Hydronium", "Hydroxide", "Oxide", "Peroxide"], "answer": "B"}
+{"id": "gpqa-bio-2", "subject": "Biology", "question": "Which organelle is the site of oxidative phosphorylation?", "choices": ["Nucleus", "Ribosome", "Mitochondrion", "Golgi"], "answer": "C"}

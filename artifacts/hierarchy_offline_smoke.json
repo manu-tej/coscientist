@@ -1,0 +1,375 @@
+{
+  "atomicity_probe": {
+    "archived_stage_runs": 0,
+    "committed_credits_spent": 0.0,
+    "committed_tokens_spent": 0,
+    "cycle": 0,
+    "error_type": "RuntimeError",
+    "failed_attempt_credits_spent": 2.0,
+    "failed_attempt_tokens_spent": 21487,
+    "failed_attempt_usage_charged": true,
+    "failed_attempt_usage_survived_reload": true,
+    "passed": true,
+    "pending_results": 0,
+    "scientific_state_rolled_back": true,
+    "state_reloaded": true
+  },
+  "checks": {
+    "agent_calls_ran_concurrently": true,
+    "completed_portfolio_reloaded": true,
+    "failed_quarter_attempt_usage_charged": true,
+    "failed_quarter_attempt_usage_survived_reload": true,
+    "failed_quarter_scientific_state_rolled_back": true,
+    "final_package_covers_all_stages": true,
+    "four_ceo_gates_persisted": true,
+    "four_stage_ledger_reconciled": true,
+    "four_stage_order_preserved": true,
+    "four_stage_program_completed": true,
+    "hierarchy_provenance_complete": true,
+    "ledger_reconciled": true,
+    "network_guard_was_enabled": true,
+    "rankings_are_evidence_cited": true,
+    "shared_token_admission_enabled": true,
+    "stage_teams_ran_concurrently": true,
+    "token_ledger_reconciled": true,
+    "two_programs_completed": true
+  },
+  "configuration": {
+    "agent_workers_per_team": 2,
+    "backend": "deterministic-in-process",
+    "end_to_end_programs": 1,
+    "max_agent_tasks_per_team": 12,
+    "network_enabled": false,
+    "program_workers": 2,
+    "programs": 2,
+    "socket_network_guard": true
+  },
+  "disclaimer": "Offline structural orchestration smoke only. Deterministic model text and seeded science fixtures are not evidence of scientific quality.",
+  "end_to_end": {
+    "final_stage": "completed",
+    "gate_decisions": [
+      {
+        "ceo_decision": "advance",
+        "run_id_present": true,
+        "survived_roll": true,
+        "transition": "disease_dossier->hypotheses"
+      },
+      {
+        "ceo_decision": "advance",
+        "run_id_present": true,
+        "survived_roll": true,
+        "transition": "hypotheses->mechanism"
+      },
+      {
+        "ceo_decision": "advance",
+        "run_id_present": true,
+        "survived_roll": true,
+        "transition": "mechanism->translational"
+      },
+      {
+        "ceo_decision": "advance",
+        "run_id_present": true,
+        "survived_roll": true,
+        "transition": "translational->completed"
+      }
+    ],
+    "ledger": {
+      "credits_spent": 40.0,
+      "expected_credits_spent": 40.0,
+      "reconciled": true,
+      "tokens_reconciled": true,
+      "tokens_spent_positive": true
+    },
+    "package": {
+      "confidence": 0.877,
+      "drug": "sildenafil",
+      "gate_decision_count": 4,
+      "includes_mechanism_and_translational_evidence": true,
+      "indication": "pulmonary arterial hypertension",
+      "mechanism": "sildenafil \u2192 PDE5A \u2192 pulmonary arterial hypertension",
+      "program": {
+        "cumulative_pos": 0.1738,
+        "name": "OFFLINE-E2E",
+        "stage": "completed"
+      },
+      "stage_order": [
+        "disease_dossier",
+        "hypotheses",
+        "mechanism",
+        "translational"
+      ],
+      "stage_run_count": 4,
+      "stage_sections": [
+        {
+          "experiment_count": 2,
+          "gate_status": "advanced",
+          "linked_gate_count": 1,
+          "source": "archive",
+          "stage": "disease_dossier",
+          "team_name": "Disease Biology"
+        },
+        {
+          "experiment_count": 5,
+          "gate_status": "advanced",
+          "linked_gate_count": 1,
+          "source": "archive",
+          "stage": "hypotheses",
+          "team_name": "Repurposing Discovery"
+        },
+        {
+          "experiment_count": 2,
+          "gate_status": "advanced",
+          "linked_gate_count": 1,
+          "source": "archive",
+          "stage": "mechanism",
+          "team_name": "Mechanism & Pharmacology"
+        },
+        {
+          "experiment_count": 2,
+          "gate_status": "completed",
+          "linked_gate_count": 1,
+          "source": "archive",
+          "stage": "translational",
+          "team_name": "Translational & Safety"
+        }
+      ]
+    },
+    "passed": true,
+    "program_id": "offline-e2e",
+    "program_status": "completed",
+    "stage_runs": [
+      {
+        "all_roster_personas_assigned": true,
+        "all_trace_tasks_succeeded": true,
+        "ceo_decision": "advance",
+        "confidence": 0.462,
+        "database_existed_during_validation": true,
+        "database_file": "offline-e2e-disease_dossier-q1.db",
+        "experiment_count": 2,
+        "gate_status": "advanced",
+        "run_id_present": true,
+        "stage": "disease_dossier",
+        "survived_roll": true,
+        "team_name": "Disease Biology",
+        "team_roster": [
+          "disease biologist",
+          "target geneticist",
+          "pathway analyst",
+          "critic"
+        ],
+        "team_summary": "The disease-biology team completed a structured dossier and retained its computed uncertainty.",
+        "trace_tasks": 12,
+        "transition": "disease_dossier->hypotheses"
+      },
+      {
+        "all_roster_personas_assigned": true,
+        "all_trace_tasks_succeeded": true,
+        "ceo_decision": "advance",
+        "confidence": 0.877,
+        "database_existed_during_validation": true,
+        "database_file": "offline-e2e-hypotheses-q2.db",
+        "experiment_count": 5,
+        "gate_status": "advanced",
+        "run_id_present": true,
+        "stage": "hypotheses",
+        "survived_roll": true,
+        "team_name": "Repurposing Discovery",
+        "team_roster": [
+          "network scientist",
+          "cheminformatician",
+          "literature scientist",
+          "critic"
+        ],
+        "team_summary": "Sildenafil leads the computed candidate panel.",
+        "trace_tasks": 12,
+        "transition": "hypotheses->mechanism"
+      },
+      {
+        "all_roster_personas_assigned": true,
+        "all_trace_tasks_succeeded": true,
+        "ceo_decision": "advance",
+        "confidence": 0.946,
+        "database_existed_during_validation": true,
+        "database_file": "offline-e2e-mechanism-q3.db",
+        "experiment_count": 2,
+        "gate_status": "advanced",
+        "run_id_present": true,
+        "stage": "mechanism",
+        "survived_roll": true,
+        "team_name": "Mechanism & Pharmacology",
+        "team_roster": [
+          "structural biologist",
+          "pharmacologist",
+          "systems biologist",
+          "critic"
+        ],
+        "team_summary": "The mechanism team integrated the archived lead with computed pharmacology readouts.",
+        "trace_tasks": 12,
+        "transition": "mechanism->translational"
+      },
+      {
+        "all_roster_personas_assigned": true,
+        "all_trace_tasks_succeeded": true,
+        "ceo_decision": "advance",
+        "confidence": 0.859,
+        "database_existed_during_validation": true,
+        "database_file": "offline-e2e-translational-q4.db",
+        "experiment_count": 2,
+        "gate_status": "completed",
+        "run_id_present": true,
+        "stage": "translational",
+        "survived_roll": true,
+        "team_name": "Translational & Safety",
+        "team_roster": [
+          "translational scientist",
+          "RWE epidemiologist",
+          "safety scientist",
+          "critic"
+        ],
+        "team_summary": "The translational team integrated feasibility, safety, and validation-plan evidence.",
+        "trace_tasks": 12,
+        "transition": "translational->completed"
+      }
+    ],
+    "stages_in_order": [
+      "disease_dossier",
+      "hypotheses",
+      "mechanism",
+      "translational"
+    ],
+    "state_reloaded": true
+  },
+  "execution": {
+    "agent_trace_tasks": 24,
+    "backend_calls_overlapped": true,
+    "max_concurrent_stage_teams": 2
+  },
+  "label": "STRUCTURAL_OFFLINE_HIERARCHY_SMOKE",
+  "ledger": {
+    "credit_budget": 50.0,
+    "credits_spent": 10.0,
+    "expected_credits_spent": 10.0,
+    "token_ledger_reconciled": true
+  },
+  "programs": [
+    {
+      "confidence": 0.842,
+      "credits_spent": 5.0,
+      "hierarchy": {
+        "all_roster_personas_assigned": true,
+        "all_trace_tasks_succeeded": true,
+        "assigned_personas": [
+          "cheminformatician",
+          "critic",
+          "literature scientist",
+          "network scientist"
+        ],
+        "candidate_ranking": [
+          {
+            "drug": "tadalafil",
+            "evidence_refs": [
+              "quant-2"
+            ],
+            "indication": "pulmonary arterial hypertension",
+            "rationale": "The quantitative panel supports a PDE5 mechanism.",
+            "regulatory_live_verified": false,
+            "regulatory_source": "company.science approved-drug screen v1",
+            "regulatory_status": "curated_approved"
+          },
+          {
+            "drug": "sildenafil",
+            "evidence_refs": [
+              "quant-1"
+            ],
+            "indication": "pulmonary arterial hypertension",
+            "rationale": "Independent quantitative support makes it the backup.",
+            "regulatory_live_verified": false,
+            "regulatory_source": "company.science approved-drug screen v1",
+            "regulatory_status": "curated_approved"
+          }
+        ],
+        "database_existed_during_validation": true,
+        "database_file": "offline-alpha-hypotheses-q1.db",
+        "run_id_present": true,
+        "team_name": "Repurposing Discovery",
+        "team_roster": [
+          "network scientist",
+          "cheminformatician",
+          "literature scientist",
+          "critic"
+        ],
+        "team_summary": "Tadalafil leads the computed candidate panel.",
+        "trace_depth": 3,
+        "trace_tasks": 12
+      },
+      "program_id": "offline-alpha",
+      "red_flags": [
+        "Verify tadalafil exposure in the target cohort."
+      ],
+      "selected_drug": "tadalafil",
+      "selected_indication": "pulmonary arterial hypertension",
+      "token_accounting": "hard portable estimated/requested-token envelope; not exact provider billing"
+    },
+    {
+      "confidence": 0.877,
+      "credits_spent": 5.0,
+      "hierarchy": {
+        "all_roster_personas_assigned": true,
+        "all_trace_tasks_succeeded": true,
+        "assigned_personas": [
+          "cheminformatician",
+          "critic",
+          "literature scientist",
+          "network scientist"
+        ],
+        "candidate_ranking": [
+          {
+            "drug": "sildenafil",
+            "evidence_refs": [
+              "quant-1"
+            ],
+            "indication": "pulmonary arterial hypertension",
+            "rationale": "The quantitative panel supports a PDE5 mechanism.",
+            "regulatory_live_verified": false,
+            "regulatory_source": "company.science approved-drug screen v1",
+            "regulatory_status": "curated_approved"
+          },
+          {
+            "drug": "tadalafil",
+            "evidence_refs": [
+              "quant-2"
+            ],
+            "indication": "pulmonary arterial hypertension",
+            "rationale": "Independent quantitative support makes it the backup.",
+            "regulatory_live_verified": false,
+            "regulatory_source": "company.science approved-drug screen v1",
+            "regulatory_status": "curated_approved"
+          }
+        ],
+        "database_existed_during_validation": true,
+        "database_file": "offline-beta-hypotheses-q1.db",
+        "run_id_present": true,
+        "team_name": "Repurposing Discovery",
+        "team_roster": [
+          "network scientist",
+          "cheminformatician",
+          "literature scientist",
+          "critic"
+        ],
+        "team_summary": "Sildenafil leads the computed candidate panel.",
+        "trace_depth": 3,
+        "trace_tasks": 12
+      },
+      "program_id": "offline-beta",
+      "red_flags": [
+        "Confirm sildenafil dose-response prospectively."
+      ],
+      "selected_drug": "sildenafil",
+      "selected_indication": "pulmonary arterial hypertension",
+      "token_accounting": "hard portable estimated/requested-token envelope; not exact provider billing"
+    }
+  ],
+  "schema_version": 3,
+  "scientific_quality_benchmark": false,
+  "status": "passed"
+}

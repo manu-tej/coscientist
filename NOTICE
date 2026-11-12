@@ -1,0 +1,36 @@
+Third-party material in this repository
+
+The MIT licence in LICENSE does not cover the eight prompt templates listed
+below, or the plan document named after them. Their text comes from:
+
+  Gottweis, J. et al. "Accelerating scientific discovery with Co-Scientist."
+  arXiv:2502.18864v2 (2026). https://arxiv.org/abs/2502.18864v2
+  Version 1 (2025) was titled "Towards an AI co-scientist":
+  https://arxiv.org/abs/2502.18864v1
+
+The same prompts appear in arXiv version 1 (2025-02-26) as Appendix Figures
+A.1-A.8, which arXiv lists under CC BY-NC-ND 4.0, and in arXiv version 2
+(2026-06-29) as Supplementary Note 9, which arXiv lists under CC BY 4.0
+(https://creativecommons.org/licenses/by/4.0/). These files are used under
+CC BY 4.0, the licence of version 2.
+
+  File                                    v1 figure  v2 note  Use
+  prompts/generation/literature.txt       A.1        9.1      adapted
+  prompts/generation/debate.txt           A.2        9.1      adapted
+  prompts/reflection/observation.txt      A.3        9.2      as published
+  prompts/ranking/single_turn.txt         A.4        9.3      as published
+  prompts/ranking/multi_turn_debate.txt   A.5        9.3      as published
+  prompts/evolution/coherence.txt         A.6        9.4      adapted
+  prompts/evolution/out_of_box.txt        A.7        9.4      adapted
+  prompts/meta_review/meta_critique.txt   A.8        9.5      as published
+
+"as published": the paper's text; line layout and the template placeholders
+(such as {hypothesis_1}) may differ.
+"adapted": the paper's text followed by added output-format instructions
+(field labels that the parsers read, and in literature.txt a citation line).
+
+docs/superpowers/plans/2026-05-28-foundation-and-agents.md quotes the same
+prompts in its task steps and is likewise not covered by the MIT licence; it
+is used under CC BY 4.0 on the same terms.
+
+The other prompt files in prompts/ do not reproduce the paper's prompts.
