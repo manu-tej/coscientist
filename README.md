@@ -4,7 +4,7 @@ Experimental reimplementation of an AI co-scientist-style system on Claude.
 
 **Status:** paused research prototype. A 2026-09-25 audit found that concordance between tournament rankings and ground truth is not established. See [Status](#status).
 
-**About this repository.** This is a single-commit snapshot, taken in November 2026, of a private development repository. Commit hashes and commit counts cited in the docs refer to that history and do not resolve here.
+**About this repository.** This is a snapshot of a private development repository, first published in November 2026 without its commit history. Commit hashes and commit counts cited in the docs refer to that history and do not resolve here.
 
 This repo explores multi-agent scientific hypothesis generation: worker agents propose and refine hypotheses, a supervisor coordinates the process, and an evaluation harness tests whether tournament-style rankings track external ground truth. On top of that core sits a model-portable, hierarchical layer for biotech research and drug-repurposing portfolio work.
 
@@ -75,6 +75,18 @@ This is not a negative result. The post-hoc audit, not the headline fit, showed
 that the retained runs cannot answer the question either way. **Caveats:** the
 sample is small, and because GPQA is widely reposted by 2026, a correct answer
 is not evidence of uncontaminated capability.
+
+**How the retained runs were made.** All 17 were run on 2026-06-04 through
+`claude-oauth`, a provider route that called the Anthropic Messages API with a
+Claude subscription token. That route was removed before this snapshot and is
+not among the built-in routes listed below. The configuration of that day
+requested `claude-sonnet-4-6` on the fast tier, which served generation,
+evolution and the tournament judge, and `claude-opus-4-8` on the strong tier,
+which served three of the six review steps. All 89 matches were single-turn
+comparisons on the fast tier, so the tournament judge was the same model as the
+generator. The runs did not log the provider or the model the API resolved:
+this paragraph is reconstructed from the configuration and commit records in
+the private development history, not read from the run databases.
 
 ## Quickstart
 
@@ -230,6 +242,9 @@ Built-in routes are:
 - `codex`: authenticated Codex CLI
 - `openai-compatible`: any local or hosted `/v1/chat/completions` endpoint
 
+The retained benchmark runs used a fifth route that has since been removed; see
+[Results](#results).
+
 An arbitrary model works when one of those routes can serve it, or when a new
 adapter implements the contract. Model capability still matters: more workers
 increase in-flight throughput, but they do not make a weak model follow schemas
@@ -247,7 +262,8 @@ the task budget completes the same maximum amount of work with more overlap; it
 does not create additional task roles. Provider rate limits and the machine's
 SQLite/file capacity remain practical ceilings.
 
-Model and provider overrides are explicit and recorded in benchmark reports:
+Model and provider overrides are explicit and recorded in benchmark reports
+(the retained 2026-06-04 reports predate this and record neither):
 
 ```bash
 uv run python coscientist.py \

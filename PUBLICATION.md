@@ -2,7 +2,7 @@
 
 Status: **paused research prototype.**
 
-Visibility history: public from 2026-07-02; private from 2026-08-01; republished in November 2026 as a single-commit snapshot of the private development repository.
+Visibility history: public from 2026-07-02; private from 2026-08-01; republished in November 2026 as a snapshot of the private development repository, without its commit history.
 
 The framing and hygiene rules below apply to every public update.
 
